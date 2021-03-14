@@ -1,6 +1,7 @@
 import xml.etree.cElementTree as ET
 import unicodedata
 import hashlib
+import re
 import os
 
 # https://www.bundestag.de/ajax/filterlist/de/services/opendata/543410-543410?limit=100&noFilterSet=true&offset=60
@@ -28,12 +29,18 @@ NC = '\033[0m'  # No Color
 
 
 def handeTagesordnung(topic):
-    # tmp = parent_map[entry]
+    skip = False
 
     res = []
     comments = {}
+    pres_comment = ""
     for entry in topic:
-        if entry.tag == PARAGRAPH:
+        if skip and entry.text:
+            com_id = str(int(hashlib.sha256(entry.text.encode('utf-8')).hexdigest(), 16) % 10**8)
+            comments[com_id] = pres_comment + ' ' + entry.text
+            res.append('<C>' + com_id + '</C>')
+            skip = False
+        elif entry.tag == PARAGRAPH:
             res.append(entry.text)
         elif entry.tag == COMMENT:
             com_id = str(int(hashlib.sha256(entry.text.encode('utf-8')).hexdigest(), 16) % 10**8)
@@ -41,12 +48,21 @@ def handeTagesordnung(topic):
             res.append('<C>' + com_id + '</C>')
         elif entry.tag == SPEACH:
             res.append(handleRede(entry))
+        elif entry.tag == 'name':
+            pres_comment = entry.text
+            skip = True
         else:
             pass
             print(RED, entry.tag, entry.text, NC)
+    return res
+
 
 def handleRede(rede):
-    speaker = getSpeaker(rede[0])
+
+    for i in range(len(rede)):
+        if rede[i].tag == PARAGRAPH and rede[i].attrib['klasse'] == 'redner':
+            speaker = getSpeaker(rede[i])
+            break
     talk = ''
 
     for i in range(1, len(rede)):
@@ -70,6 +86,7 @@ def getSpeaker(speaker):
         speaker_dict['id'] = int(speaker[0].attrib['id'])
     except ValueError as e:
         print(speaker[0].attrib, speaker_dict, e)
+        print('ERRRRR')
     return speaker_dict
 
 def handleMissing(missing):
@@ -81,9 +98,9 @@ def handleMissing(missing):
 
 def handleAnlage(attachment):
     if attachment[1][0].text == 'Entschuldigte Abgeordnete':
-        handleMissing(attachment[1][1][2])
-    for part in attachment:
-        print(part.text)
+        missing = handleMissing(attachment[1][1][2])
+
+    return missing
 
 def prot_data(data):
     meta_data = {}
@@ -97,9 +114,26 @@ def prot_data(data):
     return meta_data
 
 def contenstable(table):
+    tables = []
     for entry in table:
-        pass
-        # print(entry.tag, entry.text)
+        if entry.tag == 'ivz-block':
+            tables.append(handleTableBlock(entry))
+    return tables
+
+
+def handleTableBlock(block):
+    block_out = {}
+    block_out['title'] = block[0].text
+    block_out['topics'] = []
+    block_out['docs'] = []
+    for i in range(1, len(block)):
+        if block[i].tag == PARAGRAPH:
+            block_out['docs'].append(block[i].text)
+        elif block[i][0].text and len(re.sub('\s+',' ',block[i][0].text)) > 1:
+            if 'Drucksache' in block[i][0].text:
+                block_out['docs'].append(block[i][0].text)
+            block_out['topics'].append(block[i][0].text)
+    return block_out
 
 if __name__ == '__main__':
 
@@ -108,7 +142,7 @@ if __name__ == '__main__':
 
     # prot_files = ['19213-data.xml']
     for data_file in prot_files:
-        print(data_file)
+        print('Parsing', data_file + '...')
         root = ET.parse('data/pp19-data/' + data_file).getroot()
         parent_map = {c: p for p in root.iter() for c in p}
 
@@ -119,7 +153,6 @@ if __name__ == '__main__':
                         prot_data(cc)
                     if cc.tag == CONTENTS:
                         contenstable(cc)
-                    print(cc.tag)
             elif child.tag == SESSION:
                 for cc in child:
                     if cc.tag == TOPIC:
