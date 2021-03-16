@@ -1,3 +1,6 @@
 #Data dir
 data/*/*.xml
 data/pp18-data/BUNDESTAGSDOKUMENTE.dtd
+
+#Compiled files
+*.pyc
