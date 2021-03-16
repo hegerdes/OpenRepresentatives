@@ -1,6 +1,7 @@
 import xml.etree.cElementTree as ET
 import unicodedata
 import hashlib
+import json
 import re
 import download19
 import os
@@ -33,15 +34,12 @@ NC  = '\033[0m'  # No Color
 
 
 def handleSessionstart(session):
-    welcome = ['']
     comments = {}
-
-    if session[0].tag == COMMENT_NAME:
-        praesident = normalize(session[0].text) + ' '
-    else:
-         praesident = 'Präsident None: '
-
+    welcome = ['']
+    praesident = normalize(session[0].text) + ' ' if session[0].tag == COMMENT_NAME else 'Präsident None: '
     welcome[-1] = praesident
+
+
     for i in range(1, len(session)):
         if session[i].tag == PARAGRAPH and session[i].text:
             if 'klasse' in session[i].attrib and session[i].attrib['klasse'] == 'redner':
@@ -89,7 +87,6 @@ def handeTagesordnung(topic, praesident='Präsident None: '):
             skip = False
         elif entry.tag == SPEACH:
             res.append(handleRede(entry, praesident))
-            # print(handleRede(entry))
             skip = False
         elif entry.tag == COMMENT_NAME:
             pres_comment = entry.text
@@ -98,13 +95,7 @@ def handeTagesordnung(topic, praesident='Präsident None: '):
             pass
             # print(RED, entry.tag, entry.text, NC)
 
-    tmp = []
-    for x in res:
-        if type(x) == str:
-             tmp.append(re.sub(' +', ' ', x))
-        else:
-            tmp.append(x)
-    res = tmp
+    res = [re.sub(' +', ' ', x) if type(x) == str else x for x in res]
     return {'talks':res, 'com': comments}
 
 
@@ -126,6 +117,8 @@ def handleRede(rede, praesident='Präsident None: '):
                         talk.append('{} {} ({}): '.format(other_speaker['vorname'], other_speaker['nachname'], other_speaker['fraktion']))
                     else:
                         talk.append('{} {} ({}): '.format(other_speaker['vorname'], other_speaker['nachname'], other_speaker['rolle']))
+            elif 'klasse' in rede[i].attrib and rede[i].attrib['klasse'] in ('AL_Partei', 'AL_Namen'):
+                continue
             else:
                 talk[-1] += rede[i].text
         if rede[i].tag == COMMENT:
@@ -233,11 +226,16 @@ def hash_calc(input):
 
 if __name__ == '__main__':
     data_dir = 'data/pp19-data'
-    prot_files = [f for f in os.listdir(data_dir) if os.path.isfile(os.path.join(data_dir, f))]
+
+    prot_files = [f for f in os.listdir(data_dir) if os.path.isfile(os.path.join(data_dir, f)) and f[-3:] == 'xml']
     urls = {url[-14:]: url for url in download19.getListXML()}
+    if not prot_files:
+        print('No files found! Downloading')
+        download19.downloadXMLs(download19.getListXML())
+        prot_files = [f for f in os.listdir(data_dir) if os.path.isfile(os.path.join(data_dir, f)) and f[-3:] == 'xml']
 
 
-    prot_files = ['19213-data.xml']
+    # prot_files = ['19213-data.xml']
     all_sessions = {}
     for data_file in prot_files:
         all_sessions[data_file] = {}
@@ -264,9 +262,6 @@ if __name__ == '__main__':
             elif child.tag == ANLAGE:
                 all_sessions[data_file]['attatchments'] = handleAnlage(child)
         all_sessions[data_file]['head']['url'] = urls[data_file]
-
-    import json
-    # print(all_sessions)
 
     with open('data.json', 'w') as fp:
         json.dump(all_sessions, fp)
