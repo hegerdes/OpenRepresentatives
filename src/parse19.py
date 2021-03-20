@@ -10,11 +10,14 @@ import os
 # https://www.bundestag.de/ajax/filterlist/de/services/opendata/543410-543410?limit=100&noFilterSet=true&offset=60
 parent_map = {}
 
+
 PARAGRAPH       = 'p'
 ROLL            = 'rolle'
 SPEACH          = 'rede'
+TABLE           = 'table'
 ANLAGE          = 'anlagen'
 COMMENT         = 'kommentar'
+INFO_BLOCK      = 'ivz-block'
 HEAD_DATA       = 'kopfdaten'
 COMMENT_NAME    = 'name'
 OPENING_DATA    = 'vorspann'
@@ -139,26 +142,24 @@ def getSpeaker(speaker):
     speaker_dict = {}
 
     for entry in speaker[0][0]:
-        if entry.tag == ROLL:
-            speaker_dict[entry.tag] = entry[0].text
+        if entry.tag == ROLL and entry[0].text:
+            speaker_dict[entry.tag] = normalize(entry[0].text)
             continue
-        speaker_dict[entry.tag] = entry.text
+        if entry.text:
+            speaker_dict[entry.tag] = normalize(entry.text)
     try:
         speaker_dict['id'] = int(speaker[0].attrib['id'])
-    except ValueError as e:
+    except ValueError:
         speaker_dict['id'] = hash_calc(speaker_dict['vorname'] + speaker_dict['nachname'])
     return speaker_dict
 
 def handleMissing(missing):
-    missing_count = {}
-    for x in missing:
-        if not x[0].text in missing_count:
-            missing_count[x[0].text] = 0
-        missing_count[x[0].text] += 1
+    missing_count = [normalize(x[0].text) for x in missing]
+
     return missing_count
 
 def handleAnlage(attachment):
-    out = {'reden': [], 'missing': [], 'announce': [],'pub': [],'questions': [] }
+    out = {'talks': [], 'missing': [], 'announce': [],'pub': [],'questions': [],'votes': [] }
     for anlage in attachment[1:]:
         for anlage_con in anlage:
             if 'anlagen-typ' in anlage_con.attrib.keys():
@@ -171,19 +172,35 @@ def handleAnlage(attachment):
                 elif anlage_con.attrib['anlagen-typ'] == "" and anlage_con[0].text == 'Entschuldigte Abgeordnete':
                     out['missing'] = (handleMissing(anlage_con[1][2]))
                 elif anlage_con.attrib['anlagen-typ'] in ('Zu Protokoll gegebene Reden', 'Zu Protokoll gegebene Rede'):
-                    out['reden'].append(' '.join([normalize(x.text) for x in anlage_con if x.tag == PARAGRAPH and x.text]))
+                    out['talks'].append(' '.join([normalize(x.text) for x in anlage_con if x.tag == PARAGRAPH and x.text]))
                 elif 'Erklärung nach' in anlage_con.attrib['anlagen-typ'] or 'Erklärungen nach' in anlage_con.attrib['anlagen-typ'] or 'Neudruck eines Redebeitrages' in anlage_con.attrib['anlagen-typ']:
                     out['announce'].append(' '.join([normalize(x.text) for x in anlage_con if x.tag == PARAGRAPH and x.text]))
                 elif anlage_con.attrib['anlagen-typ'] in ('Amtliche Mitteilungen ohne Verlesung', 'Amtliche Mitteilung ohne Verlesung', 'Amtliche Mitteilung ohne Verlesung', 'Änderungsantrag', 'Erklärung'):
                     out['pub'].append(' '.join([normalize(x.text) for x in anlage_con if x.tag == PARAGRAPH and x.text]))
                 elif 'Schriftliche Antworten auf Fragen der' in anlage_con.attrib['anlagen-typ']:
                     out['questions'].append('\n'.join([normalize(x.text) for x in anlage_con if x.tag == PARAGRAPH and x.text]))
+                elif anlage_con.attrib['anlagen-typ'] in ('Ergebnis', 'Ergebnisse'):
+                    out['votes'].append(handle_vote(anlage_con))
                 elif 'Namensverzeichnis' in anlage_con.attrib['anlagen-typ']:
                     pass
                 else:
-                    print(anlage_con.tag, anlage_con.text, anlage_con.attrib)
-
+                    print('Did not parse Anlage:', anlage_con.tag, anlage_con.attrib)
     return out
+
+def handle_vote(results):
+    head = ' '.join([normalize(x.text) for x in results if x.tag == PARAGRAPH and x.text])
+    head = head.replace('*', '\n* Anmerkung:')
+    res = []
+    for item in results:
+        if item.tag == TABLE:
+            for entry in item:
+                if entry.tag in ("thead", "tbody"):
+                    res.append([normalize(x.text) for x in entry[0] if x.tag in ('th', 'td')])
+
+    res = [dict(zip(res[i], res[i+1])) for i in range(0, len(res), 2)]
+
+    return {"voteTopic": head, "results": res}
+
 
 def prot_data(data):
     meta_data = {}
@@ -199,7 +216,7 @@ def prot_data(data):
 def contenstable(table):
     tables = []
     for entry in table:
-        if entry.tag == 'ivz-block':
+        if entry.tag == INFO_BLOCK:
             tables.append(handleTableBlock(entry))
     return tables
 
@@ -224,24 +241,30 @@ def normalize(input, type='NFC'):
 def hash_calc(input):
     return int(hashlib.sha256(input.encode('utf-8')).hexdigest(), 16) % 10**8
 
-if __name__ == '__main__':
-    data_dir = 'data/pp19-data'
+def getXMLFileList(datapath):
+    try:
+        return [f for f in os.listdir(datapath) if os.path.isfile(os.path.join(datapath, f)) and f[-3:] == 'xml']
+    except FileNotFoundError:
+        print('File not found. Please check')
+        exit(0)
 
-    prot_files = [f for f in os.listdir(data_dir) if os.path.isfile(os.path.join(data_dir, f)) and f[-3:] == 'xml']
-    urls = {url[-14:]: url for url in download19.getListXML()}
+def parse(datapath):
+    all_sessions = {}
+    prot_files = None
+    dirname = os.path.abspath(os.path.dirname(datapath))
+    prot_files = [os.path.basename(datapath)] if os.path.isfile(datapath) and datapath[-3:] == 'xml' else getXMLFileList(datapath)
+
     if not prot_files:
         print('No files found! Downloading')
         download19.downloadXMLs(download19.getListXML())
-        prot_files = [f for f in os.listdir(data_dir) if os.path.isfile(os.path.join(data_dir, f)) and f[-3:] == 'xml']
+        prot_files = getXMLFileList(datapath)
 
-
-    # prot_files = ['19213-data.xml']
-    all_sessions = {}
+    urls = {url[-14:]: url for url in download19.getListXML()}
     for data_file in prot_files:
         all_sessions[data_file] = {}
         all_sessions[data_file]['topics'] = []
         print('Parsing', data_file + '...')
-        root = ET.parse('data/pp19-data/' + data_file).getroot()
+        root = ET.parse(os.path.join(dirname, data_file)).getroot()
         parent_map = {c: p for p in root.iter() for c in p}
 
         praesident = 'Präsident None: '
@@ -263,5 +286,12 @@ if __name__ == '__main__':
                 all_sessions[data_file]['attatchments'] = handleAnlage(child)
         all_sessions[data_file]['head']['url'] = urls[data_file]
 
-    with open('data.json', 'w') as fp:
+    return all_sessions
+
+if __name__ == '__main__':
+    data_dir = 'data/pp19-data/'
+    data_dir = 'data/pp19-data/19212-data.xml'
+    all_sessions = parse(data_dir)
+    print(all_sessions)
+    with open('example_out_tmp.json', 'w') as fp:
         json.dump(all_sessions, fp)
