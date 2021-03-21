@@ -39,11 +39,20 @@ NC  = '\033[0m'  # No Color
 def handleSessionstart(session):
     comments = {}
     welcome = ['']
-    praesident = normalize(session[0].text) + ' ' if session[0].tag == COMMENT_NAME else 'Präsident None: '
-    welcome[-1] = praesident
+    start = 0
+
+    while True:
+        if session[start].tag == COMMENT_NAME or ('klasse' in session[start].attrib and session[start].attrib['klasse'] == 'N'):
+            praesident = normalize(session[start].text)
+            break
+        start += 1
+        if start == len(session):
+            praesident = 'Präsident None: '
+            break
+    # welcome[-1] = praesident
 
 
-    for i in range(1, len(session)):
+    for i in range(start, len(session)):
         if session[i].tag == PARAGRAPH and session[i].text:
             if 'klasse' in session[i].attrib and session[i].attrib['klasse'] == 'redner':
                 speaker = getSpeaker(session[i])
@@ -59,84 +68,89 @@ def handleSessionstart(session):
                 welcome.append(praesident)
             else:
                 welcome.append(normalize(session[i].text))
-        else:pass
-    return praesident, {'talks': welcome, 'com': comments}
+        else:
+            # print(RED + session[i].tag, session[i].text, session[i].attrib, NC)
+            pass
+    return {'name': praesident, 'talk': welcome, 'comments': comments}, praesident, comments
 
 
 def handeTagesordnung(topic, praesident='Präsident None: '):
-    skip = False
     res = []
     comments = {}
-    pres_comment = ""
+    old_speaker = praesident
+    curr_speaker = praesident
 
     for entry in topic:
-        if skip and entry.tag == PARAGRAPH and entry.text:
-            com_id = str(hash_calc(entry.text))
-            comments[com_id] = {'content':pres_comment + ' ' + normalize(entry.text),'type': PARAGRAPH}
-            res.append('<TC>' + com_id + '</TC>')
-        elif entry.tag == PARAGRAPH and entry.text:
-            if len(res) > 0 and type(res[-1]) == str and entry.text:
-                res[-1] +=  ' ' + normalize(entry.text)
+        if entry.tag == PARAGRAPH and entry.text and len(entry.text) > 1:
+            if len(res) > 0 and type(res[-1]) == dict:
+                if curr_speaker == old_speaker:
+                    res[-1]['talk'] +=  ' ' + normalize(entry.text)
+                else:
+                    old_speaker = curr_speaker
+                    res.append({'Name':curr_speaker, 'talk': normalize(entry.text)})
             else:
-                res.append(praesident + normalize(entry.text))
-            skip = False
+                res.append({'Name':praesident, 'talk': normalize(entry.text)})
         elif entry.tag == COMMENT:
             com_id = str(hash_calc(entry.text))
             comments[com_id] = {'content':normalize(entry.text), 'type':COMMENT}
-            if len(res) > 0 and type(res[-1]) == str:
-                res[-1] = res[-1] + ' <C>' + com_id + '</C> '
+            if len(res) > 0:
+                res[-1]['talk'] += ' <C>' + com_id + '</C> '
             else:
                 res.append('<C>' + com_id + '</C>')
-            skip = False
         elif entry.tag == SPEACH:
-            res.append(handleRede(entry, praesident))
-            skip = False
+            old_speaker, talk, com, talk_id = handleRede(entry, praesident)
+            res.append({'talkID': talk_id, 'speaker': old_speaker, 'talk': talk})
+            comments = {**comments, **com}
         elif entry.tag == COMMENT_NAME:
-            pres_comment = entry.text
-            skip = True
+            curr_speaker = entry.text
         else:
             pass
             # print(RED, entry.tag, entry.text, NC)
 
     res = [re.sub(' +', ' ', x) if type(x) == str else x for x in res]
-    return {'talks':res, 'com': comments}
+    return {'talks':res, 'comments': comments}
 
 
 def handleRede(rede, praesident='Präsident None: '):
     comments = {}
     talk = ['']
-    for i in range(len(rede)):
-        if rede[i].tag == PARAGRAPH and rede[i].attrib['klasse'] == 'redner':
-            speaker = getSpeaker(rede[i])
+    for entry in rede:
+        if entry.tag == PARAGRAPH and entry.attrib['klasse'] == 'redner':
+            speaker = getSpeaker(entry)
             break
 
+    praes_interupt = False
     other_speaker = speaker
     for i in range(1, len(rede)):
-        if rede[i].tag == PARAGRAPH and rede[i].text:
+        if rede[i].tag == PARAGRAPH:
             if 'klasse' in rede[i].attrib and rede[i].attrib['klasse'] == 'redner':
-                if getSpeaker(rede[i]) != other_speaker['id']:
+                if getSpeaker(rede[i])['id'] != other_speaker['id'] or praes_interupt:
+                    praes_interupt = False
                     other_speaker = getSpeaker(rede[i])
-                    if 'fraktion' in other_speaker.keys():
-                        talk.append('{} {} ({}): '.format(other_speaker['vorname'], other_speaker['nachname'], other_speaker['fraktion']))
-                    else:
-                        talk.append('{} {} ({}): '.format(other_speaker['vorname'], other_speaker['nachname'], other_speaker['rolle']))
+                    try:
+                        if 'fraktion' in other_speaker.keys():
+                            talk.append('{} {} ({}): '.format(other_speaker['vorname'], other_speaker['nachname'], other_speaker['fraktion']))
+                        else:
+                            talk.append('{} {} ({}): '.format(other_speaker['vorname'], other_speaker['nachname'], other_speaker['rolle']))
+                    except KeyError: #Redner is labeld wrong
+                        if rede[i][0].text: talk.append(rede[i][0].text)
             elif 'klasse' in rede[i].attrib and rede[i].attrib['klasse'] in ('AL_Partei', 'AL_Namen'):
                 continue
-            else:
+            elif rede[i].text:
                 talk[-1] += rede[i].text
         if rede[i].tag == COMMENT:
             com_id = str(hash_calc(rede[i].text))
             comments[com_id] = {'content':normalize(rede[i].text),'type': COMMENT}
             talk[-1] += ' <C>' + com_id + '</C> '
         if rede[i].tag == COMMENT_NAME and rede[i].text:
-            if 'Präsident' in rede[i].text:
+            if 'räsident' in rede[i].text:
                 talk.append(praesident)
+                praes_interupt = True
             elif len(rede[i].text.strip()) > 1:
                 talk.append(rede[i].text + ' ')
             pass
-            # print(RED+  'NAME' + NC, rede[i].text[:20])
-    out = [normalize(x) for x in talk]
-    return (speaker, out)
+
+    return (speaker, [normalize(x) for x in talk], comments, int(rede.attrib['id'][2:]))
 
 def getSpeaker(speaker):
     speaker_dict = {}
@@ -147,7 +161,7 @@ def getSpeaker(speaker):
             continue
         if entry.text:
             speaker_dict[entry.tag] = normalize(entry.text)
-    try:
+    try: # speaker has no id
         speaker_dict['id'] = int(speaker[0].attrib['id'])
     except ValueError:
         speaker_dict['id'] = hash_calc(speaker_dict['vorname'] + speaker_dict['nachname'])
@@ -182,9 +196,9 @@ def handleAnlage(attachment):
                 elif anlage_con.attrib['anlagen-typ'] in ('Ergebnis', 'Ergebnisse'):
                     out['votes'].append(handle_vote(anlage_con))
                 elif 'Namensverzeichnis' in anlage_con.attrib['anlagen-typ']:
-                    pass
+                    pass # ignore
                 else:
-                    print('Did not parse Anlage:', anlage_con.tag, anlage_con.attrib)
+                    print('Did not parse attachment:', anlage_con.tag, anlage_con.attrib)
     return out
 
 def handle_vote(results):
@@ -230,7 +244,7 @@ def handleTableBlock(block):
         if block[i].tag == PARAGRAPH:
             block_out['docs'].append(block[i].text)
         elif block[i][0].text and len(re.sub('\s+',' ',block[i][0].text)) > 1:
-            if 'Drucksache' in block[i][0].text:
+            if 'Drucksache' in block[i][0].text: # TODO RegEx
                 block_out['docs'].append(block[i][0].text)
             block_out['topics'].append(block[i][0].text)
     return block_out
@@ -239,7 +253,7 @@ def normalize(input, type='NFC'):
     return unicodedata.normalize(type, input)
 
 def hash_calc(input):
-    return int(hashlib.sha256(input.encode('utf-8')).hexdigest(), 16) % 10**8
+    return int(hashlib.sha256(input.encode('utf-8')).hexdigest(), 16) % 10**16
 
 def getXMLFileList(datapath):
     try:
@@ -250,6 +264,7 @@ def getXMLFileList(datapath):
 
 def parse(datapath):
     all_sessions = {}
+    all_comments = {}
     prot_files = None
     dirname = os.path.abspath(os.path.dirname(datapath))
     prot_files = [os.path.basename(datapath)] if os.path.isfile(datapath) and datapath[-3:] == 'xml' else getXMLFileList(datapath)
@@ -278,20 +293,31 @@ def parse(datapath):
             elif child.tag == SESSION:
                 for cc in child:
                     if cc.tag == SESSEIO_START:
-                        praesident, start = handleSessionstart(cc)
+                        start, praesident, comm = handleSessionstart(cc)
                         all_sessions[data_file]['topics'].append(start)
+                        all_comments = {**all_comments, **comm}
                     if cc.tag == TOPIC:
-                        all_sessions[data_file]['topics'].append(handeTagesordnung(cc, praesident))
+                        topic = handeTagesordnung(cc, praesident)
+                        all_sessions[data_file]['topics'].append(topic)
+                        all_comments = {**all_comments, **topic['comments']}
+                        # NOTE Only in PY 3.9 (faster): all_comments = all_comments | topic['comments']
             elif child.tag == ANLAGE:
                 all_sessions[data_file]['attatchments'] = handleAnlage(child)
         all_sessions[data_file]['head']['url'] = urls[data_file]
 
-    return all_sessions
+    return all_sessions, all_comments
 
 if __name__ == '__main__':
+
+    # Get vote results
+    # https://www.bundestag.de/apps/na/na/abstimmungenForMdb.form?vaid=1970&offset=20
+    # Scrape Bundestag
     data_dir = 'data/pp19-data/'
     data_dir = 'data/pp19-data/19212-data.xml'
-    all_sessions = parse(data_dir)
-    print(all_sessions)
+    all_sessions, all_comments = parse(data_dir)
+
     with open('example_out_tmp.json', 'w') as fp:
         json.dump(all_sessions, fp)
+
+    with open('comments_out_tmp.json', 'w') as fp:
+        json.dump(all_comments, fp)
