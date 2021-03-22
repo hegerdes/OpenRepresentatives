@@ -16,3 +16,5 @@ Things to do:
  * Simple Info page calling the API
  * GraphQL API
  * Add more open data
+    * Scrape Bundestag
+    * Twitter from politicians
