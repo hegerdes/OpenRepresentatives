@@ -1,6 +1,12 @@
 #Data dir
+.vscode/*
 data/*/*.xml
 data/pp18-data/BUNDESTAGSDOKUMENTE.dtd
+tmp/*.json
 
 #Compiled files
 *.pyc
+*_tmp.json
+
+#Secrets
+.env
