@@ -1,4 +1,5 @@
 import xml.etree.cElementTree as ET
+from datetime import date
 import unicodedata
 import hashlib
 import json
@@ -71,7 +72,7 @@ def handleSessionstart(session):
         else:
             # print(RED + session[i].tag, session[i].text, session[i].attrib, NC)
             pass
-    return {'name': praesident, 'talk': welcome, 'comments': comments}, praesident, comments
+    return {'topic': 'start', 'talks': [{'name': praesident, 'talk': welcome}], 'comments': comments}, praesident, comments
 
 
 def handeTagesordnung(topic, praesident='Präsident None: '):
@@ -84,17 +85,17 @@ def handeTagesordnung(topic, praesident='Präsident None: '):
         if entry.tag == PARAGRAPH and entry.text and len(entry.text) > 1:
             if len(res) > 0 and type(res[-1]) == dict:
                 if curr_speaker == old_speaker:
-                    res[-1]['talk'] +=  ' ' + normalize(entry.text)
+                    res[-1]['talk'][0] +=  ' ' + normalize(entry.text)
                 else:
                     old_speaker = curr_speaker
-                    res.append({'Name':curr_speaker, 'talk': normalize(entry.text)})
+                    res.append({'name':curr_speaker, 'talk': [normalize(entry.text)]})
             else:
-                res.append({'Name':praesident, 'talk': normalize(entry.text)})
+                res.append({'name':praesident, 'talk': [normalize(entry.text)]})
         elif entry.tag == COMMENT:
             com_id = str(hash_calc(entry.text))
             comments[com_id] = {'content':normalize(entry.text), 'type':COMMENT}
             if len(res) > 0:
-                res[-1]['talk'] += ' <C>' + com_id + '</C> '
+                res[-1]['talk'][0] += ' <C>' + com_id + '</C> '
             else:
                 res.append('<C>' + com_id + '</C>')
         elif entry.tag == SPEACH:
@@ -108,7 +109,7 @@ def handeTagesordnung(topic, praesident='Präsident None: '):
             # print(RED, entry.tag, entry.text, NC)
 
     res = [re.sub(' +', ' ', x) if type(x) == str else x for x in res]
-    return {'talks':res, 'comments': comments}
+    return {'topic': topic.attrib['top-id'], 'talks':res, 'comments': comments}
 
 
 def handleRede(rede, praesident='Präsident None: '):
@@ -168,9 +169,7 @@ def getSpeaker(speaker):
     return speaker_dict
 
 def handleMissing(missing):
-    missing_count = [normalize(x[0].text) for x in missing]
-
-    return missing_count
+    return [normalize(x[0].text) for x in missing]
 
 def handleAnlage(attachment):
     out = {'talks': [], 'missing': [], 'announce': [],'pub': [],'questions': [],'votes': [] }
@@ -218,13 +217,14 @@ def handle_vote(results):
 
 def prot_data(data):
     meta_data = {}
-    meta_data['PlenarprotokollNum'] = data[0][1].text
-    meta_data['Periode'] = data[0][0].text
+    meta_data['plenarprotokollNum'] = data[0][1].text
+    meta_data['periode'] = data[0][0].text
     meta_data[data[1].tag] = data[1].text
     meta_data[data[2].tag] = data[2].text
     meta_data[data[3].tag] = data[3][0].text
     meta_data[data[4][0].tag] = data[4][0].text
-    meta_data[data[4][1].tag] = data[4][1].attrib['date']
+    split_date = [int(i) for i in data[4][1].attrib['date'].split('.')]
+    meta_data[data[4][1].tag] =  date(split_date[-1], split_date[1], split_date[0] )
     return meta_data
 
 def contenstable(table):
@@ -236,16 +236,18 @@ def contenstable(table):
 
 
 def handleTableBlock(block):
+    p_pattern = re.compile('\d+(\/\d+)')
     block_out = {}
-    block_out['title'] = block[0].text
+    block_out['title'] = block[0].text.replace(':','')
     block_out['topics'] = []
     block_out['docs'] = []
     for i in range(1, len(block)):
         if block[i].tag == PARAGRAPH:
             block_out['docs'].append(block[i].text)
         elif block[i][0].text and len(re.sub('\s+',' ',block[i][0].text)) > 1:
-            if 'Drucksache' in block[i][0].text: # TODO RegEx
-                block_out['docs'].append(block[i][0].text)
+            if 'Drucksache' in block[i][0].text:
+                for match in p_pattern.findall(block[i][0].text):
+                    block_out['docs'].append('19' + match)
             block_out['topics'].append(block[i][0].text)
     return block_out
 
@@ -264,6 +266,7 @@ def getXMLFileList(datapath):
 
 def parse(datapath):
     all_sessions = {}
+    all_speaker = {}
     all_comments = {}
     prot_files = None
     dirname = os.path.abspath(os.path.dirname(datapath))
@@ -298,14 +301,32 @@ def parse(datapath):
                         all_comments = {**all_comments, **comm}
                     if cc.tag == TOPIC:
                         topic = handeTagesordnung(cc, praesident)
+                        tmp = {speach['speaker']['id']: speach['speaker'] for speach in topic['talks'] if 'speaker' in speach}
+                        all_speaker = {**all_speaker, **tmp}
                         all_sessions[data_file]['topics'].append(topic)
                         all_comments = {**all_comments, **topic['comments']}
-                        # NOTE Only in PY 3.9 (faster): all_comments = all_comments | topic['comments']
             elif child.tag == ANLAGE:
                 all_sessions[data_file]['attatchments'] = handleAnlage(child)
         all_sessions[data_file]['head']['url'] = urls[data_file]
 
-    return all_sessions, all_comments
+    return all_sessions, all_speaker, all_comments
+
+
+def getData(tmp_dir):
+    try:
+        all_sessions, all_speaker, all_comments = (None, None, None)
+        with open(tmp_dir + 'content_out_tmp.json', 'r', encoding='utf8') as fp:
+            all_sessions = json.load(fp)
+        with open(tmp_dir + 'comments_out_tmp.json', 'r', encoding='utf8') as fp:
+            all_comments = json.load(fp)
+        with open(tmp_dir + 'speaker_out_tmp.json', 'r', encoding='utf8') as fp:
+            all_speaker = json.load(fp)
+        return all_sessions, all_speaker, all_comments
+    except Exception:
+        print('Can not load files. Parsing...')
+        return parse('data/pp19-data/')
+
+
 
 if __name__ == '__main__':
 
@@ -313,11 +334,16 @@ if __name__ == '__main__':
     # https://www.bundestag.de/apps/na/na/abstimmungenForMdb.form?vaid=1970&offset=20
     # Scrape Bundestag
     data_dir = 'data/pp19-data/'
+    tmp_dir = 'tmp/'
+    tmp_dir = ''
     data_dir = 'data/pp19-data/19212-data.xml'
-    all_sessions, all_comments = parse(data_dir)
+    all_sessions, all_speaker, all_comments,  = parse(data_dir)
 
-    with open('example_out_tmp.json', 'w') as fp:
-        json.dump(all_sessions, fp)
+    with open(tmp_dir + 'content_out_tmp.json', 'w', encoding='utf8') as fp:
+        json.dump(all_sessions, fp, ensure_ascii=False, default=str)
 
-    with open('comments_out_tmp.json', 'w') as fp:
-        json.dump(all_comments, fp)
+    with open(tmp_dir + 'comments_out_tmp.json', 'w', encoding='utf8') as fp:
+        json.dump(all_comments, fp, ensure_ascii=False, default=str)
+
+    with open(tmp_dir + 'speaker_out_tmp.json', 'w', encoding='utf8') as fp:
+        json.dump(all_speaker, fp, ensure_ascii=False, default=str)
