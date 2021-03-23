@@ -1,6 +1,18 @@
-# ```SQL commands for table creation:
+# SQL commands for table creation:
 
-## Head
+## Queries
+```SQL
+# Most missing persons
+SELECT DISTINCT m.resid, m.f_name, m.s_name , p.party ,
+COUNT(m.resid) OVER (PARTITION BY m.resid) as misses
+from missing m  inner join parliaments p on m.resid = p.resid
+order by misses desc ;
+```
+
+
+## Tables
+
+### Head
 ```SQL
 CREATE TABLE head (
 	headID INT NOT NULL,
@@ -17,7 +29,7 @@ CREATE TABLE head (
 ```
 
 
-## Content
+### Content
 ```SQL
 CREATE TABLE content (
 	contentID SERIAL,
@@ -29,10 +41,10 @@ CREATE TABLE content (
 );
 ```
 
-## Parliament
+### Parliament
 ```SQL
 CREATE TABLE parliaments (
-	resID INT NOT NULL,
+	resID BIGINT NOT NULL,
 	f_name VARCHAR(64),
 	s_name VARCHAR(64),
 	party VARCHAR(64),
@@ -41,7 +53,7 @@ CREATE TABLE parliaments (
 );
 ```
 
-## Docs
+### Docs
 ```SQL
 CREATE TABLE docs (
 	docID SERIAL,
@@ -54,7 +66,7 @@ CREATE TABLE docs (
 );
 ```
 
-## Missing
+### Missing
 ```SQL
 CREATE TABLE missing (
 	missingID SERIAL,
@@ -69,23 +81,24 @@ CREATE TABLE missing (
 ```
 
 
-## Comments
+### Comments
 ```SQL
 CREATE TABLE comments (
-	commentID INT NOT NULL,
+	commentID BIGINT NOT NULL,
 	type VARCHAR(32) DEFAULT 'kommentar',
 	content VARCHAR(4096) DEFAULT 'none',
 	PRIMARY KEY (commentID)
 );
 ```
 
-## Talks
+### Talks
 ```SQL
 CREATE TABLE talks (
-	talkID INT NOT NULL,
-	speakerID INT NOT NULL,
+	talkID BIGINT NOT NULL,
+	speakerID BIGINT NOT NULL,
 	speakerName VARCHAR(128) NOT NULL,
 	contentID INT NOT NULL,
+	sessionID INT NOT NULL,
 	talk TEXT NOT NULL,
 	PRIMARY KEY (talkID),
 	FOREIGN KEY (speakerID) REFERENCES parliaments(resID),
@@ -94,14 +107,14 @@ CREATE TABLE talks (
 );
 ```
 
-## Talk_Com
+### Talk_Com
  ```SQL
 CREATE TABLE talk_com (
 	ID SERIAL,
-	talkID INT NOT NULL,
-	commentID INT NOT NULL,
+	talkID BIGINT NOT NULL,
+	commentID BIGINT NOT NULL,
 	PRIMARY KEY (ID),
-    FOREIGN KEY (commentID) REFERENCES comments(commentID),
+	FOREIGN KEY (commentID) REFERENCES comments(commentID),
 	FOREIGN KEY (talkID) REFERENCES talks(talkID)
 );
 ```
