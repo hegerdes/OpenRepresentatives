@@ -1,4 +1,5 @@
 import xml.etree.cElementTree as ET
+from functools import cache
 from datetime import date
 import unicodedata
 import hashlib
@@ -50,8 +51,6 @@ def handleSessionstart(session):
         if start == len(session):
             praesident = 'Präsident None: '
             break
-    # welcome[-1] = praesident
-
 
     for i in range(start, len(session)):
         if session[i].tag == PARAGRAPH and session[i].text:
@@ -70,8 +69,9 @@ def handleSessionstart(session):
             else:
                 welcome.append(normalize(session[i].text))
         else:
-            # print(RED + session[i].tag, session[i].text, session[i].attrib, NC)
             pass
+            # print(RED + session[i].tag, session[i].text, session[i].attrib, NC)
+
     return {'topic': 'start', 'talks': [{'name': praesident, 'talk': welcome}], 'comments': comments}, praesident, comments
 
 
@@ -162,14 +162,11 @@ def getSpeaker(speaker):
             continue
         if entry.text:
             speaker_dict[entry.tag] = normalize(entry.text)
-    try: # speaker has no id
+    try: # speaker has no id ->Minister
         speaker_dict['id'] = int(speaker[0].attrib['id'])
     except ValueError:
         speaker_dict['id'] = hash_calc(speaker_dict['vorname'] + speaker_dict['nachname'])
     return speaker_dict
-
-def handleMissing(missing):
-    return [normalize(x[0].text) for x in missing]
 
 def handleAnlage(attachment):
     out = {'talks': [], 'missing': [], 'announce': [],'pub': [],'questions': [],'votes': [] }
@@ -186,7 +183,7 @@ def handleAnlage(attachment):
                     out['missing'] = (handleMissing(anlage_con[1][2]))
                 elif anlage_con.attrib['anlagen-typ'] in ('Zu Protokoll gegebene Reden', 'Zu Protokoll gegebene Rede'):
                     out['talks'].append(' '.join([normalize(x.text) for x in anlage_con if x.tag == PARAGRAPH and x.text]))
-                elif 'Erklärung nach' in anlage_con.attrib['anlagen-typ'] or 'Erklärungen nach' in anlage_con.attrib['anlagen-typ'] or 'Neudruck eines Redebeitrages' in anlage_con.attrib['anlagen-typ']:
+                elif 'Erklärung nach' in anlage_con.attrib['anlagen-typ'] or 'Erklärungen nach' in anlage_con.attrib['anlagen-typ'] or 'Neudruck ' in anlage_con.attrib['anlagen-typ']:
                     out['announce'].append(' '.join([normalize(x.text) for x in anlage_con if x.tag == PARAGRAPH and x.text]))
                 elif anlage_con.attrib['anlagen-typ'] in ('Amtliche Mitteilungen ohne Verlesung', 'Amtliche Mitteilung ohne Verlesung', 'Amtliche Mitteilung ohne Verlesung', 'Änderungsantrag', 'Erklärung'):
                     out['pub'].append(' '.join([normalize(x.text) for x in anlage_con if x.tag == PARAGRAPH and x.text]))
@@ -224,7 +221,7 @@ def prot_data(data):
     meta_data[data[3].tag] = data[3][0].text
     meta_data[data[4][0].tag] = data[4][0].text
     split_date = [int(i) for i in data[4][1].attrib['date'].split('.')]
-    meta_data[data[4][1].tag] =  date(split_date[-1], split_date[1], split_date[0] )
+    meta_data[data[4][1].tag] = date(split_date[-1], split_date[1], split_date[0] )
     return meta_data
 
 def contenstable(table):
@@ -232,6 +229,8 @@ def contenstable(table):
     for entry in table:
         if entry.tag == INFO_BLOCK:
             tables.append(handleTableBlock(entry))
+        # Maybe handle ivz-eintrag that are not in a ivz-block
+        # These are minor topics
     return tables
 
 
@@ -251,9 +250,14 @@ def handleTableBlock(block):
             block_out['topics'].append(block[i][0].text)
     return block_out
 
+def handleMissing(missing):
+    return [normalize(x[0].text) for x in missing]
+
+@cache
 def normalize(input, type='NFC'):
     return unicodedata.normalize(type, input)
 
+@cache
 def hash_calc(input):
     return int(hashlib.sha256(input.encode('utf-8')).hexdigest(), 16) % 10**16
 
