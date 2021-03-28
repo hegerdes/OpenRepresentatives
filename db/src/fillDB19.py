@@ -260,7 +260,7 @@ def addTalks(conn, all_sessions):
                         talkID = talk_IDs[-1]
                     else: # Präsident talk
                         talkID += 1
-                        talk_data = (talkID, 1, talk_entry['name'], contentID, sessionid, head['datum'], '\n'.join(talk_entry['talk'] ))
+                        talk_data = (talkID, 1, talk_entry['name'].replace(':',''), contentID, sessionid, head['datum'], '\n'.join(talk_entry['talk'] ))
                         cur.execute(talks_query, talk_data)
                         addTalkComLink(cur, talkID, talk_entry['com'])
                 except KeyError:
@@ -289,16 +289,16 @@ if __name__ == '__main__':
     all_sessions, all_speaker, all_comments = parse19.parse(data_dir)
     commands = (head, content, parla, docs, missing, comments, talks, talk_com)
 
-    dotenv.load_dotenv()
+    dotenv.load_dotenv('../../.env')
     conn = psycopg2.connect('dbname={} user={} password={}'
         .format(os.getenv('POSGRES_DB'), os.getenv('POSGRES_USER'), os.getenv('POSGRES_PW')))
-    # createTables(conn, commands)
-    # fillHead(conn, all_sessions)
-    # fillContentDocs(conn, all_sessions)
-    # addParla(conn, all_speaker)
-    # fillMissing(conn, all_sessions, all_speaker)
-    # fillComments(conn, all_comments)
-    # addTalks(conn, all_sessions)
+    createTables(conn, commands)
+    fillHead(conn, all_sessions)
+    fillContentDocs(conn, all_sessions)
+    addParla(conn, all_speaker)
+    fillMissing(conn, all_sessions, all_speaker)
+    fillComments(conn, all_comments)
+    addTalks(conn, all_sessions)
     cur = conn.cursor()
 
     # # Queries
