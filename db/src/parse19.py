@@ -58,7 +58,7 @@ def handleSessionstart(session):
                 speaker = getSpeaker(session[i])
                 welcome.append('{} {} ({}):'.format(speaker['vorname'], speaker['nachname'], speaker['fraktion']))
             else:
-                welcome[-1] +=  ' ' + normalize(session[i].text)
+                welcome[-1] += normalize(session[i].text)
         elif session[i].tag == COMMENT and session[i].text:
             com_id = str(hash_calc(session[i].text))
             comments[com_id] = {'content':normalize(session[i].text), 'type':COMMENT}
@@ -68,11 +68,14 @@ def handleSessionstart(session):
                 welcome.append(praesident)
             else:
                 welcome.append(normalize(session[i].text))
-        else:
-            pass
-            # print(RED + session[i].tag, session[i].text, session[i].attrib, NC)
 
-    return {'topic': 'start', 'talks': [{'name': praesident, 'talk': welcome}], 'comments': comments}, praesident, comments
+
+    # No actual welcome speach given
+    if len(welcome[-1]) == 0:
+        return
+    welcome = [re.sub(r"\s\s+" , " ", x) for x in welcome]
+    praesident = re.sub(r"\s\s+" , " ", praesident)
+    return {'topic': 'start', 'talks': [{'name': praesident, 'talk': welcome, 'com': list(comments.keys())}], 'comments': comments}, praesident + ' ', comments
 
 
 def handeTagesordnung(topic, praesident='Präsident None: '):
@@ -85,30 +88,28 @@ def handeTagesordnung(topic, praesident='Präsident None: '):
         if entry.tag == PARAGRAPH and entry.text and len(entry.text) > 1:
             if len(res) > 0 and type(res[-1]) == dict:
                 if curr_speaker == old_speaker:
-                    res[-1]['talk'][0] +=  ' ' + normalize(entry.text)
+                    res[-1]['talk'][0] += normalize(entry.text)
                 else:
                     old_speaker = curr_speaker
-                    res.append({'name':curr_speaker, 'talk': [normalize(entry.text)]})
+                    res.append({'name':curr_speaker, 'talk': [normalize(entry.text)], 'com': []})
             else:
-                res.append({'name':praesident, 'talk': [normalize(entry.text)]})
+                res.append({'name':praesident, 'talk': [normalize(entry.text)], 'com': []})
+            # res[-1]['talk'] = [re.sub(r"\s\s+" , " ", x) for x in res[-1]['talk']]
         elif entry.tag == COMMENT:
             com_id = str(hash_calc(entry.text))
             comments[com_id] = {'content':normalize(entry.text), 'type':COMMENT}
             if len(res) > 0:
-                res[-1]['talk'][0] += ' <C>' + com_id + '</C> '
-            else:
-                res.append('<C>' + com_id + '</C>')
+                res[-1]['talk'][0] += '<C>' + com_id + '</C> '
+                res[-1]['com'].append(com_id)
         elif entry.tag == SPEACH:
-            old_speaker, talk, com, talk_id = handleRede(entry, praesident)
-            res.append({'talkID': talk_id, 'speaker': old_speaker, 'talk': talk})
+            rede_res = handleRede(entry, praesident)
+            if (rede_res):
+                old_speaker, talk, com, talk_id = rede_res
+                res.append({'talkID': talk_id, 'speaker': old_speaker, 'talk': talk, 'com': list(com.keys())})
             comments = {**comments, **com}
         elif entry.tag == COMMENT_NAME:
             curr_speaker = entry.text
-        else:
-            pass
-            # print(RED, entry.tag, entry.text, NC)
 
-    res = [re.sub(' +', ' ', x) if type(x) == str else x for x in res]
     return {'topic': topic.attrib['top-id'], 'talks':res, 'comments': comments}
 
 
@@ -151,6 +152,9 @@ def handleRede(rede, praesident='Präsident None: '):
                 talk.append(rede[i].text + ' ')
             pass
 
+    # No actual talk given
+    if len(talk[-1]) == 0:
+        return
     return (speaker, [normalize(x) for x in talk], comments, int(rede.attrib['id'][2:]))
 
 def getSpeaker(speaker):
@@ -255,7 +259,7 @@ def handleMissing(missing):
 
 @cache
 def normalize(input, type='NFC'):
-    return unicodedata.normalize(type, input)
+    return re.sub(r'\.(?! )', '. ', re.sub(r' +', ' ', unicodedata.normalize(type, input)))
 
 @cache
 def hash_calc(input):
@@ -300,9 +304,11 @@ def parse(datapath):
             elif child.tag == SESSION:
                 for cc in child:
                     if cc.tag == SESSEIO_START:
-                        start, praesident, comm = handleSessionstart(cc)
-                        all_sessions[data_file]['topics'].append(start)
-                        all_comments = {**all_comments, **comm}
+                        session_res = handleSessionstart(cc)
+                        if session_res:
+                            start, praesident, comm = session_res
+                            all_sessions[data_file]['topics'].append(start)
+                            all_comments = {**all_comments, **comm}
                     if cc.tag == TOPIC:
                         topic = handeTagesordnung(cc, praesident)
                         tmp = {speach['speaker']['id']: speach['speaker'] for speach in topic['talks'] if 'speaker' in speach}
@@ -316,38 +322,41 @@ def parse(datapath):
     return all_sessions, all_speaker, all_comments
 
 
-def getData(tmp_dir):
+def getData(out_dir):
     try:
         all_sessions, all_speaker, all_comments = (None, None, None)
-        with open(tmp_dir + 'content_out_tmp.json', 'r', encoding='utf8') as fp:
+        with open(out_dir + 'content_out_tmp.json', 'r', encoding='utf8') as fp:
             all_sessions = json.load(fp)
-        with open(tmp_dir + 'comments_out_tmp.json', 'r', encoding='utf8') as fp:
+        with open(out_dir + 'comments_out_tmp.json', 'r', encoding='utf8') as fp:
             all_comments = json.load(fp)
-        with open(tmp_dir + 'speaker_out_tmp.json', 'r', encoding='utf8') as fp:
+        with open(out_dir + 'speaker_out_tmp.json', 'r', encoding='utf8') as fp:
             all_speaker = json.load(fp)
         return all_sessions, all_speaker, all_comments
     except Exception:
         print('Can not load files. Parsing...')
-        return parse('data/pp19-data/')
+        return parse('../data/pp19-data/')
+
+def saveData(out_dir, all_sessions, all_speaker, all_comments):
+    with open(out_dir + 'content_out_tmp.json', 'w', encoding='utf8') as fp:
+        json.dump(all_sessions, fp, ensure_ascii=False, default=str)
+
+    with open(out_dir + 'comments_out_tmp.json', 'w', encoding='utf8') as fp:
+        json.dump(all_comments, fp, ensure_ascii=False, default=str)
+
+    with open(out_dir + 'speaker_out_tmp.json', 'w', encoding='utf8') as fp:
+        json.dump(all_speaker, fp, ensure_ascii=False, default=str)
 
 
 
 if __name__ == '__main__':
 
-    # Get vote results
-    # https://www.bundestag.de/apps/na/na/abstimmungenForMdb.form?vaid=1970&offset=20
+    # ToDo: Get vote results
     # Scrape Bundestag
-    data_dir = 'data/pp19-data/'
-    tmp_dir = 'tmp/'
-    tmp_dir = ''
-    data_dir = 'data/pp19-data/19212-data.xml'
+    # https://www.bundestag.de/apps/na/na/abstimmungenForMdb.form?vaid=1970&offset=20
+
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    data_dir = '../data/pp19-data/'
+    out_dir = '../data_out/'
+    # data_dir = 'data/pp19-data/19212-data.xml'
     all_sessions, all_speaker, all_comments,  = parse(data_dir)
-
-    with open(tmp_dir + 'content_out_tmp.json', 'w', encoding='utf8') as fp:
-        json.dump(all_sessions, fp, ensure_ascii=False, default=str)
-
-    with open(tmp_dir + 'comments_out_tmp.json', 'w', encoding='utf8') as fp:
-        json.dump(all_comments, fp, ensure_ascii=False, default=str)
-
-    with open(tmp_dir + 'speaker_out_tmp.json', 'w', encoding='utf8') as fp:
-        json.dump(all_speaker, fp, ensure_ascii=False, default=str)
+    saveData(out_dir, all_sessions, all_speaker, all_comments)

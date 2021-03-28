@@ -33,11 +33,12 @@ def getListXML():
 
 def downloadXMLs(dw_list):
     for xmlfile in dw_list:
-        if os.path.isfile('data/pp19-data/' + xmlfile[-14:]): break
+        if os.path.isfile('../data/pp19-data/' + xmlfile[-14:]): continue
         print('Downloading:', xmlfile)
-        with open('data/pp19-data/' + xmlfile[-14:], 'wb') as fp:
+        with open('../data/pp19-data/' + xmlfile[-14:], 'wb') as fp:
             fp.write(requests.get(xmlfile).content)
 
 
 if __name__ == '__main__':
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
     downloadXMLs(getListXML())

@@ -23,7 +23,7 @@ CREATE TABLE head (
 	title VARCHAR(64) DEFAULT '',
 	place VARCHAR(64) DEFAULT 'Berlin',
 	date DATE,
-	url VARCHAR(265) DEFAULT '',
+	url VARCHAR(512) DEFAULT '',
 	PRIMARY KEY (headID)
 );
 ```
@@ -32,12 +32,12 @@ CREATE TABLE head (
 ### Content
 ```SQL
 CREATE TABLE content (
-	contentID SERIAL,
-	sessionID INT NOT NULL,
-	title VARCHAR(1024) NOT NULL,
-	topic VARCHAR(4096) NOT NULL,
-	PRIMARY KEY (contentID),
-	FOREIGN KEY (sessionID) REFERENCES head(headID)
+    contentID BIGINT NOT NULL,
+    sessionID INT NOT NULL,
+    title VARCHAR(1024) NOT NULL,
+    topics VARCHAR(16384) NOT NULL,
+    PRIMARY KEY (contentID),
+    FOREIGN KEY (sessionID) REFERENCES head(headID)
 );
 ```
 
@@ -94,27 +94,28 @@ CREATE TABLE comments (
 ### Talks
 ```SQL
 CREATE TABLE talks (
-	talkID BIGINT NOT NULL,
-	speakerID BIGINT NOT NULL,
-	speakerName VARCHAR(128) NOT NULL,
-	contentID INT NOT NULL,
-	sessionID INT NOT NULL,
-	talk TEXT NOT NULL,
-	PRIMARY KEY (talkID),
-	FOREIGN KEY (speakerID) REFERENCES parliaments(resID),
-	FOREIGN KEY (sessionID) REFERENCES head(headID),
-	FOREIGN KEY (contentID) REFERENCES content(contentID)
+    talkID BIGINT NOT NULL,
+    speakerID BIGINT NOT NULL,
+    speakerName VARCHAR(128) NOT NULL,
+    contentID INT NOT NULL,
+    sessionID INT NOT NULL,
+    date DATE,
+    talk TEXT NOT NULL,
+    PRIMARY KEY (talkID),
+    FOREIGN KEY (speakerID) REFERENCES parliaments(resID),
+    FOREIGN KEY (sessionID) REFERENCES head(headID),
+    FOREIGN KEY (contentID) REFERENCES content(contentID)
 );
 ```
 
 ### Talk_Com
  ```SQL
 CREATE TABLE talk_com (
-	ID SERIAL,
-	talkID BIGINT NOT NULL,
-	commentID BIGINT NOT NULL,
-	PRIMARY KEY (ID),
-	FOREIGN KEY (commentID) REFERENCES comments(commentID),
-	FOREIGN KEY (talkID) REFERENCES talks(talkID)
+    ID SERIAL,
+    talkID BIGINT NOT NULL,
+    commentID BIGINT NOT NULL,
+    PRIMARY KEY (ID),
+    FOREIGN KEY (commentID) REFERENCES comments(commentID),
+    FOREIGN KEY (talkID) REFERENCES talks(talkID)
 );
 ```
