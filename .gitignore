@@ -5,8 +5,10 @@ db/data/pp18-data/BUNDESTAGSDOKUMENTE.dtd
 tmp/*.json
 
 #Compiled files
+*/env/*
 *.pyc
 *_tmp.json
 
 #Secrets
 .env
+api/.vscode/settings.json

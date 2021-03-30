@@ -284,14 +284,16 @@ def addTalkComLink(cur, talkID, comList):
 if __name__ == '__main__':
     data_dir = '../data/pp19-data/'
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    print(os.environ)
 
-    all_sessions, all_speaker, all_comments = parse19.getData('../data_out/')
+    # all_sessions, all_speaker, all_comments = parse19.getData('../data_out/')
     all_sessions, all_speaker, all_comments = parse19.parse(data_dir)
     commands = (head, content, parla, docs, missing, comments, talks, talk_com)
 
     dotenv.load_dotenv('../../.env')
-    conn = psycopg2.connect('dbname={} user={} password={}'
-        .format(os.getenv('POSGRES_DB'), os.getenv('POSGRES_USER'), os.getenv('POSGRES_PW')))
+    conn = psycopg2.connect('dbname={} user={} password={} host={} port={}'.
+        format(os.getenv('POSGRES_DB'), os.getenv('POSGRES_USER'), os.getenv('POSGRES_PW'),
+        os.getenv('POSGRES_HOST'), os.getenv('POSGRES_PORT')))
     createTables(conn, commands)
     fillHead(conn, all_sessions)
     fillContentDocs(conn, all_sessions)
