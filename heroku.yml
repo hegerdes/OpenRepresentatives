@@ -1,0 +1,15 @@
+setup:
+  addons:
+    - plan: heroku-postgresql
+      as: DATABASE
+  config:
+    IS_HEROKU: "YES"
+build:
+  docker:
+    # api: ./api/Dockerfile
+    worker: ./db/Dockerfile
+  config:
+    FOO: bar
+run:
+  # api: bundle exec puma -C config/puma.rb
+  worker: python src/fillDB.py
