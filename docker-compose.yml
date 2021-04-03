@@ -11,3 +11,5 @@ services:
       POSTGRES_DB: ${POSGRES_DB}
     ports:
       - ${POSGRES_PORT}:${POSGRES_PORT}
+    # volumes:
+    #   - ./db_files:/var/lib/postgresql/data

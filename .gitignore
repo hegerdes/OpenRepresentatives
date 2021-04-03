@@ -1,5 +1,6 @@
 #Data dir
 .vscode/*
+db_files/*
 db/data/*/*.xml
 db/data/pp18-data/BUNDESTAGSDOKUMENTE.dtd
 tmp/*.json

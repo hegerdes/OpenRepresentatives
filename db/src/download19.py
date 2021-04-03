@@ -31,11 +31,11 @@ def getListXML():
             urls.append(base_url + res.text[start[j]+6:ende[j]+4])
     return urls
 
-def downloadXMLs(dw_list):
+def downloadXMLs(dw_list, outdir = '../data/pp19-data/'):
     for xmlfile in dw_list:
-        if os.path.isfile('../data/pp19-data/' + xmlfile[-14:]): continue
+        if os.path.isfile(outdir + xmlfile[-14:]): continue
         print('Downloading:', xmlfile)
-        with open('../data/pp19-data/' + xmlfile[-14:], 'wb') as fp:
+        with open(outdir + xmlfile[-14:], 'wb') as fp:
             fp.write(requests.get(xmlfile).content)
 
 

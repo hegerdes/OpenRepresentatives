@@ -94,7 +94,6 @@ def handeTagesordnung(topic, praesident='Präsident None: '):
                     res.append({'name':curr_speaker, 'talk': [normalize(entry.text)], 'com': []})
             else:
                 res.append({'name':praesident, 'talk': [normalize(entry.text)], 'com': []})
-            # res[-1]['talk'] = [re.sub(r"\s\s+" , " ", x) for x in res[-1]['talk']]
         elif entry.tag == COMMENT:
             com_id = str(hash_calc(entry.text))
             comments[com_id] = {'content':normalize(entry.text), 'type':COMMENT}
@@ -267,6 +266,7 @@ def hash_calc(input):
 
 def getXMLFileList(datapath):
     try:
+        download19.downloadXMLs(download19.getListXML(), datapath)
         return [f for f in os.listdir(datapath) if os.path.isfile(os.path.join(datapath, f)) and f[-3:] == 'xml']
     except FileNotFoundError:
         print('File not found. Please check')
@@ -357,6 +357,6 @@ if __name__ == '__main__':
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     data_dir = '../data/pp19-data/'
     out_dir = '../data_out/'
-    # data_dir = 'data/pp19-data/19212-data.xml'
+    # data_dir = '../data/pp19-data/19219-data.xml'
     all_sessions, all_speaker, all_comments,  = parse(data_dir)
     saveData(out_dir, all_sessions, all_speaker, all_comments)

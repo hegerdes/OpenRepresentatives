@@ -9,6 +9,10 @@ import visual
 
 
 # ```SQL commands for table creation:
+
+table_check = """SELECT *
+FROM INFORMATION_SCHEMA.tables where table_schema='public';
+"""
 head = """
 CREATE TABLE head (
     headID INT NOT NULL,
@@ -112,11 +116,13 @@ CREATE TABLE talk_com (
 
 
 def createTables(conn, commands):
-    print('Creating tables...')
     cur = conn.cursor()
-    for command in commands:
-        print('\t' + command[:26].replace('\n', ''))
-        cur.execute(command)
+    cur.execute(table_check)
+    if len(cur.fetchall()) == 0:
+        print('Creating tables...')
+        for command in commands:
+            print('\t' + command[:26].replace('\n', ''))
+            cur.execute(command)
 
     conn.commit()
     cur.close()
@@ -139,6 +145,7 @@ def fillHead(conn, all_sessions):
     cur.close()
 
 def fillContentDocs(conn, all_sessions):
+    cur = conn.cursor()
     print('Filling content & docs data...')
     contents_query = """INSERT INTO "content"
         (contentid, sessionid, title, topics) VALUES(%s, %s, %s, %s);
@@ -149,10 +156,11 @@ def fillContentDocs(conn, all_sessions):
         VALUES(%s, %s, %s, %s);
     """
 
-    #ToDo just one entry per topic
-    counter = 1
+    cur.execute('SELECT max(contentid) FROM "content"')
+    res = cur.fetchall()
+    counter = 1 if len(res) == 0 or res[0][0] == None else res[0][0] +1
     p_pattern = re.compile('\d+(\/\d+)')
-    cur = conn.cursor()
+
     for k, v in all_sessions.items():
         sessionid = int(re.findall(r'\d+', k)[0])
         for content in v['contents']:
@@ -184,9 +192,16 @@ def addParla(conn, all_speaker):
             rep_data = (sp['id'],sp['vorname'],sp['nachname'],sp['fraktion'],None)
         cur.execute(parla_query, rep_data)
 
-    cur.execute(parla_query, (1, 'Sitzungs', 'Präsident', 'Präsident', 'Präsident'))
+    if not isPresidentePresent(cur):
+        cur.execute(parla_query, (1, 'Sitzungs', 'Präsident', 'Präsident', 'Präsident'))
     conn.commit()
     cur.close()
+
+def isPresidentePresent(cur):
+    check_query = """SELECT * FROM parliaments WHERE resid=1;"""
+    cur.execute(check_query)
+    res = cur.fetchall()
+    return not (len(res) == 0 or res[0][0] == None)
 
 def fillComments(conn, all_comments):
     print('Filling comments data...')
@@ -225,7 +240,7 @@ def fillMissing(conn, all_sessions, all_speaker):
 def addTalks(conn, all_sessions):
     print('Filling talks data...')
     cur = conn.cursor()
-    counter = 1
+
 
     talks_query = """INSERT INTO talks
         (talkid, speakerid, speakername, contentid, sessionid, date, talk)
@@ -235,7 +250,7 @@ def addTalks(conn, all_sessions):
     for k,v in all_sessions.items():
         head = v['head']
         sessionid = int(re.findall(r'\d+', k)[0])
-        talkID = int('19' + str(counter) + '00100')
+        talkID = int(str(sessionid) + '00100')
         print('\tFilling talks from session {}...'.format(sessionid))
         cur.execute('SELECT contentid, title FROM content WHERE sessionid = %s', (sessionid,))
         query_res = cur.fetchall()
@@ -267,7 +282,6 @@ def addTalks(conn, all_sessions):
                     talk_data = (talkID, talk_entry['speaker']['id'], 'Unavaiable', contentID, sessionid, head['datum'],'\n'.join(talk_entry['talk']))
                     cur.execute(talks_query, talk_data)
                     addTalkComLink(cur, talkID, talk_entry['com'])
-        counter += 1
 
     conn.commit()
     cur.close()
@@ -281,29 +295,87 @@ def addTalkComLink(cur, talkID, comList):
         talk_com_data = (talkID, int(com))
         cur.execute(talk_com_query, talk_com_data)
 
+def createConnection():
+    conn = None
+    heroku_pg_uri = os.getenv('DATABASE_URL')
+    try:
+        if heroku_pg_uri:
+            conn = psycopg2.connect(heroku_pg_uri)
+        else:
+            dotenv.load_dotenv('../../.env')
+            conn = psycopg2.connect('dbname={} user={} password={} host={} port={}'.
+                format(os.getenv('POSGRES_DB'), os.getenv('POSGRES_USER'), os.getenv('POSGRES_PW'),
+                os.getenv('POSGRES_HOST'), os.getenv('POSGRES_PORT')))
+
+    except Exception as e:
+        print('Can not connect to DB. Check ConnectionString!')
+        raise e
+    return conn
+
+def checkLatestDBEntry(conn):
+    cur = conn.cursor()
+    check_query = """SELECT max(headid) FROM head"""
+    cur.execute(check_query)
+    return cur.fetchall()
+
+def filterNewEntrys(conn, all_sessions, all_speaker, all_comments):
+    lastEntry = checkLatestDBEntry(conn)
+    if len(lastEntry) == 0 or lastEntry[0][0] == None:
+        return all_sessions, all_speaker, all_comments
+    new_sessions = {}
+    old_sessions = {}
+    for k, v in all_sessions.items():
+        sessionid = int(re.findall(r'\d+', k)[0])
+        if lastEntry[0][0] and sessionid > lastEntry[0][0]:
+            new_sessions[k] = v
+        else:
+            old_sessions[k] = v
+
+    old_comments = {}
+    old_speaker = {}
+    for k, v in old_sessions.items():
+        for topic in v['topics']:
+            old_comments = {**old_comments, **{ck: cv for ck, cv in topic['comments'].items()}}
+            old_speaker = {**old_speaker,** {speach['speaker']['id']: speach['speaker'] for speach in topic['talks'] if 'speaker' in speach}}
+
+
+    new_comments_tmp = {}
+    new_speaker_tmp = {}
+    for k, v in new_sessions.items():
+        for topic in v['topics']:
+            new_comments_tmp = {**new_comments_tmp, **{ck: cv for ck, cv in topic['comments'].items()}}
+            new_speaker_tmp = {**new_speaker_tmp,** {speach['speaker']['id']: speach['speaker'] for speach in topic['talks'] if 'speaker' in speach}}
+
+    new_comments_out = {k:v for k, v in new_comments_tmp.items() if k not in old_comments}
+    new_speaker_out = {k:v for k,v  in new_speaker_tmp.items() if k not in old_speaker}
+    if len(new_sessions) > 0:
+        print('Found {} new protocoll(s)'.format(len(new_sessions)))
+    return new_sessions, new_speaker_out, new_comments_out
+
 if __name__ == '__main__':
     data_dir = '../data/pp19-data/'
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    print(os.environ)
 
+    conn = createConnection()
     # all_sessions, all_speaker, all_comments = parse19.getData('../data_out/')
     all_sessions, all_speaker, all_comments = parse19.parse(data_dir)
-    commands = (head, content, parla, docs, missing, comments, talks, talk_com)
+    createTablesCmd = (head, content, parla, docs, missing, comments, talks, talk_com)
+    print('Checking DB...')
 
-    dotenv.load_dotenv('../../.env')
-    conn = psycopg2.connect('dbname={} user={} password={} host={} port={}'.
-        format(os.getenv('POSGRES_DB'), os.getenv('POSGRES_USER'), os.getenv('POSGRES_PW'),
-        os.getenv('POSGRES_HOST'), os.getenv('POSGRES_PORT')))
-    createTables(conn, commands)
-    fillHead(conn, all_sessions)
-    fillContentDocs(conn, all_sessions)
-    addParla(conn, all_speaker)
-    fillMissing(conn, all_sessions, all_speaker)
-    fillComments(conn, all_comments)
-    addTalks(conn, all_sessions)
-    cur = conn.cursor()
+    createTables(conn, createTablesCmd)
+    all_sessions, all_speaker, all_comments = filterNewEntrys(conn, all_sessions, all_speaker, all_comments)
 
-    # # Queries
+    if len(all_sessions) == 0:
+        print('Everythin up to date')
+    else:
+        print('Inserting data...')
+        fillHead(conn, all_sessions)
+        fillContentDocs(conn, all_sessions)
+        addParla(conn, all_speaker)
+        fillMissing(conn, all_sessions, all_speaker)
+        fillComments(conn, all_comments)
+        addTalks(conn, all_sessions)
+
+    # Queries
     conn.commit()
-    cur.close()
     conn.close()
