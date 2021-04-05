@@ -2,22 +2,25 @@ version: '3.1'
 
 services:
 
-  # api:
-  #   build:
-  #     context: ./api
-  #   depends_on:
-  #     - db
-  #   # restart: always
-  #   environment:
-  #     POSGRES_PW: ${POSGRES_PW}
-  #     POSGRES_USER: ${POSGRES_USER}
-  #     POSGRES_DB: ${POSGRES_DB}
-  #     POSGRES_PORT: ${POSGRES_PORT}
-  #     POSGRES_HOST: db
-  #     FLASK_ENV: development
-  #     DOCKER_ENV: isSet
-  #   ports:
-  #     - 5000:5000
+  api:
+    build:
+      context: ./api
+    depends_on:
+      - db
+    # restart: always
+    environment:
+      POSGRES_PW: ${POSGRES_PW}
+      POSGRES_USER: ${POSGRES_USER}
+      POSGRES_DB: ${POSGRES_DB}
+      POSGRES_PORT: ${POSGRES_PORT}
+      POSGRES_HOST: db
+      FLASK_ENV: app.py
+      FLASK_ENV: development
+      DOCKER_ENV: isSet
+    volumes:
+      - ./api:/app/api
+    ports:
+      - 5000:5000
 
   db:
     image: postgres:alpine
