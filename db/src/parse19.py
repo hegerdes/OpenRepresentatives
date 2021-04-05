@@ -265,6 +265,7 @@ def hash_calc(input):
     return int(hashlib.sha256(input.encode('utf-8')).hexdigest(), 16) % 10**16
 
 def getXMLFileList(datapath):
+    print('Checking files...')
     try:
         download19.downloadXMLs(download19.getListXML(), datapath)
         return [f for f in os.listdir(datapath) if os.path.isfile(os.path.join(datapath, f)) and f[-3:] == 'xml']
@@ -278,6 +279,7 @@ def parse(datapath):
     all_comments = {}
     prot_files = None
     dirname = os.path.abspath(os.path.dirname(datapath))
+    # Check if one file or data dir
     prot_files = [os.path.basename(datapath)] if os.path.isfile(datapath) and datapath[-3:] == 'xml' else getXMLFileList(datapath)
 
     if not prot_files:
@@ -313,8 +315,8 @@ def parse(datapath):
                         topic = handeTagesordnung(cc, praesident)
                         tmp = {speach['speaker']['id']: speach['speaker'] for speach in topic['talks'] if 'speaker' in speach}
                         all_speaker = {**all_speaker, **tmp}
-                        all_sessions[data_file]['topics'].append(topic)
                         all_comments = {**all_comments, **topic['comments']}
+                        all_sessions[data_file]['topics'].append(topic)
             elif child.tag == ANLAGE:
                 all_sessions[data_file]['attatchments'] = handleAnlage(child)
         all_sessions[data_file]['head']['url'] = urls[data_file]
@@ -334,17 +336,18 @@ def getData(out_dir):
         return all_sessions, all_speaker, all_comments
     except Exception:
         print('Can not load files. Parsing...')
-        return parse('../data/pp19-data/')
+        return parse(out_dir)
 
-def saveData(out_dir, all_sessions, all_speaker, all_comments):
+def saveData(out_dir, all_sessions, all_speaker, all_comments, indent=2):
+    print('Saving pared files as json')
     with open(out_dir + 'content_out_tmp.json', 'w', encoding='utf8') as fp:
-        json.dump(all_sessions, fp, ensure_ascii=False, default=str)
+        json.dump(all_sessions, fp, ensure_ascii=False, default=str, indent=indent)
 
     with open(out_dir + 'comments_out_tmp.json', 'w', encoding='utf8') as fp:
-        json.dump(all_comments, fp, ensure_ascii=False, default=str)
+        json.dump(all_comments, fp, ensure_ascii=False, default=str, indent=indent)
 
     with open(out_dir + 'speaker_out_tmp.json', 'w', encoding='utf8') as fp:
-        json.dump(all_speaker, fp, ensure_ascii=False, default=str)
+        json.dump(all_speaker, fp, ensure_ascii=False, default=str, indent=indent)
 
 
 

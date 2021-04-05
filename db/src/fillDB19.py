@@ -6,7 +6,7 @@ import re
 import visual
 
 
-
+DOC_BASE_URL = "https://dip21.bundestag.de/dip21/btd/{}/{}/{}.pdf"
 
 # ```SQL commands for table creation:
 
@@ -160,7 +160,7 @@ def fillContentDocs(conn, all_sessions):
     res = cur.fetchall()
     counter = 1 if len(res) == 0 or res[0][0] == None else res[0][0] +1
     p_pattern = re.compile('\d+(\/\d+)')
-
+    periode = '19'
     for k, v in all_sessions.items():
         sessionid = int(re.findall(r'\d+', k)[0])
         for content in v['contents']:
@@ -169,7 +169,8 @@ def fillContentDocs(conn, all_sessions):
             for topic in content['topics']:
                 if 'Drucksache' in topic:
                     for match in p_pattern.findall(topic):
-                        doc_data = (counter, sessionid, '19' + match, None)
+                        url = DOC_BASE_URL.format(periode, match[1:].rjust(5, '0')[:3], periode + match[1:].rjust(5, '0'))
+                        doc_data = (counter, sessionid, '19' + match, url)
                         cur.execute(doc_query, doc_data)
             counter +=1
 
