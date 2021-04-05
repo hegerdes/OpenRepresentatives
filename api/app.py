@@ -1,54 +1,44 @@
 
-from ariadne import constants
-from flask import request, jsonify
-from ariadne import make_executable_schema, graphql_sync, snake_case_fallback_resolvers, ObjectType, gql, constants
+import flask
+import ariadne
 import resolvers
 from flask_setup import app
+import os
 
-type_defs = gql("""
-    schema {
-        query: Query
-    }
-    type Query {
-        sessions: [Session]
-        session(sessionID: ID!): Session
-    }
-
-    type Session {
-        id: ID!
-        title: String!
-        type: String!
-        place: String!
-    }
-""")
-
-query = ObjectType("Query")
+schema_file = ariadne.load_schema_from_path("schema.graphql")
+query = ariadne.ObjectType("Query")
 query.set_field("sessions", resolvers.resolv_sessions)
 query.set_field("session", resolvers.resolv_session)
 
-schema = make_executable_schema(
-    type_defs, query, snake_case_fallback_resolvers
+schema = ariadne.make_executable_schema(
+    schema_file, query, ariadne.snake_case_fallback_resolvers
 )
+
+@app.route('/')
+def hello():
+    return 'HiThere!'
 
 @app.route("/graphql", methods=["GET"])
 def graphql_playground():
-    return constants.PLAYGROUND_HTML, 200
+    return ariadne.constants.PLAYGROUND_HTML, 200
 
 
 @app.route("/graphql", methods=["POST"])
 def graphql_server():
-    data = request.get_json()
+    data = flask.request.get_json()
 
-    success, result = graphql_sync(
+    success, result = ariadne.graphql_sync(
         schema,
         data,
-        context_value=request,
+        context_value=flask.request,
         debug=app.debug
     )
 
     status_code = 200 if success else 400
-    return jsonify(result), status_code
+    return flask.jsonify(result), status_code
 
 
 if __name__ == '__main__':
-    app.run()
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    app.run(host='0.0.0.0')
+
