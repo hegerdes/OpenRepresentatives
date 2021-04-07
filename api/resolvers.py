@@ -40,10 +40,17 @@ def fillres(query_request, query_data):
         'url': data[8],
         'docs': None,
         'talks': None,
-        'content': None,
+        'content': getContent(data[0]),
         'missing': None
         })
     return out
+
+def getContent(sessionID):
+    query_res = fetchDB((('SELECT topics FROM "content" WHERE sessionID=%s'), (sessionID,)))
+    if query_res == None:
+        return {}
+    return [x[0] for x in query_res]
+
 
 def fetchDB(query):
     for i in range(DBRETRY):
