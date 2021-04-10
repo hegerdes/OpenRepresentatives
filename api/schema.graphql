@@ -5,8 +5,8 @@
 
     type Query {
         sessions(first: Int, last:Int): [Session]
-        session(sessionID: ID, date:Date): Session
-        talks(talkID: ID, date: Date, mpID: ID, mpName: String): [Talks]
+        session(session_id: ID, date:Date): Session
+        talks(session_id: ID, talk_id: ID, date: Date, mp_id: ID, mp_name: String): [Talk]
     }
 
     type Session {
@@ -17,40 +17,40 @@
         place: String!
         publisher: String!
         date: Date!
-        url: String
+        url: String!
         docs: [Doc]
         content: [String]
-        talks: [Talks]
+        talks(first: Int, last: Int): [Talk]
         missing: [Missing]
     }
 
     type Doc{
-        docName: String!
-        url: String
-        contentIDs: [Int]
-        sessionIDs: [Int]
-
+        docname: String
+        url: String!
+        session_ids: [Int]
     }
 
     type MP{
-        id: ID!
+        mp_id: ID!
         f_name: String!
         s_name: String!
         party: String
         role: String
-        talks: [Talks]
+        talks: [Talk]
     }
 
-    type Talks{
-        id: ID!
+    type Talk{
+        talk_id: ID!
         name: String!
+        mp_id: ID!
         date: Date!
-        talk: String!
+        session_id: ID!
+        talk(with_comments: Boolean): String!
 
     }
 
     type Missing{
-        sessionID: ID!
+        session_id: ID!
         name: String!
-        mpID: ID
+        mp_id: ID
     }
