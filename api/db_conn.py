@@ -1,6 +1,8 @@
 import os
 import dotenv
 import psycopg2
+import const
+import time
 
 conn = None
 
@@ -11,7 +13,6 @@ def createConnection():
         if heroku_pg_uri:
             return psycopg2.connect(heroku_pg_uri)
         elif docker_env:
-            print('Using docker')
             return psycopg2.connect('dbname={} user={} password={} host={} port={}'.
                 format(os.getenv('POSGRES_DB'), os.getenv('POSGRES_USER'), os.getenv('POSGRES_PW'),
                 os.getenv('POSGRES_HOST'), os.getenv('POSGRES_PORT')))
@@ -28,4 +29,12 @@ def createConnection():
 
 
 conn = createConnection()
-
+conn.set_session(readonly=True)
+for i in range(const.DB_RETRY):
+    if conn.closed != 0:
+        time.sleep(0.5)
+        conn = createConnection()
+        conn.set_session(readonly=True)
+    else:
+        print('Connected to DB')
+        break
