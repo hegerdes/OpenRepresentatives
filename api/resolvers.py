@@ -4,8 +4,8 @@ import json
 import datetime
 import ariadne
 import re
-from const import DB_RETRY, COMMENT as CT
-import db_conn
+from const import COMMENT as CT
+from db_conn import db_conn
 
 comment_pattern = re.compile("<C>\d{16}<\/C>")
 comment_pattern_blank = re.compile(" <C>\d{16}<\/C>")
@@ -17,7 +17,7 @@ date_scalar = ariadne.ScalarType("Date")
 @talk.field("talk")
 def resultTalk(obj, info, with_comments=True):
     query = 'SELECT commentid, "content" FROM "comments" where '
-    print('Info:',info, '\nKARGW:', with_comments)
+    # print('Info:',info, '\nKARGW:', with_comments)
     if not with_comments:
         return comment_pattern_blank.sub('', obj['talk'])
     else:
@@ -34,9 +34,10 @@ def resultTalk(obj, info, with_comments=True):
         if len(query_params) == 0: return obj['talk']
         query = query[:-3]
 
-
-        print(query, query_params)
-        query_res = fetchDB(query, tuple(query_params))
+        # print(query, query_params)
+        query_res = db_conn.fetchDB(query, tuple(query_params))
+        if query_res == None:
+            return ''
 
         comments = [{'id': x[0], 'content': x[1], **id_map[str(x[0])]} for x in query_res]
         comments.sort(key=lambda x: x['start'])
@@ -70,7 +71,7 @@ def resolve_talks(obj, info, session_id=None, talk_id=None, date=None, mp_id=Non
     query += params[0]
 
     # print('ResQuery', query, tuple(params[1]))
-    query_res = fetchDB(query, tuple(params[1]))
+    query_res = db_conn.fetchDB(query, tuple(params[1]))
 
     if query_res == None:
         return []
@@ -86,7 +87,7 @@ def resolv_sessions(obj, info, first=None, last=None):
     if first == None: first = 0     # Is periode 0 and session 0
     if last == None: last = 99999   # Is periode 99 and session 999
 
-    query_res = fetchDB('SELECT headid, "session", "period", publisher, "type", title, place, "date", url FROM head WHERE headid >= %s and headid <= %s ;', (first, last))
+    query_res = db_conn.fetchDB('SELECT headid, "session", "period", publisher, "type", title, place, "date", url FROM head WHERE headid >= %s and headid <= %s ;', (first, last))
     if query_res == None:
         return {}
     return fill_session_res(obj, info, query_res)
@@ -97,9 +98,9 @@ def resolv_session(obj, info, session_id=None, date=None):
     print('info',info)
     query_res = None
     if session_id:
-        query_res = fetchDB('SELECT headid, "session", "period", publisher, "type", title, place, "date", url FROM head WHERE session=%s;', (session_id,))
+        query_res = db_conn.fetchDB('SELECT headid, "session", "period", publisher, "type", title, place, "date", url FROM head WHERE session=%s;', (session_id,))
     else:
-        query_res = fetchDB('SELECT headid, "session", "period", publisher, "type", title, place, "date", url FROM head WHERE date=%s;', (date,))
+        query_res = db_conn.fetchDB('SELECT headid, "session", "period", publisher, "type", title, place, "date", url FROM head WHERE date=%s;', (date,))
     if query_res == None:
         return {}
     return fill_session_res(obj, info, query_res)[0]
@@ -129,21 +130,21 @@ def fill_session_res(obj, query_request, query_data):
 
 
 def getMissing(sessionID):
-    query_res = fetchDB('select sessionid, resid, f_name, s_name FROM missing WHERE sessionid=%s;', (sessionID,))
+    query_res = db_conn.fetchDB('select sessionid, resid, f_name, s_name FROM missing WHERE sessionid=%s;', (sessionID,))
     if query_res == None:
         return []
     return [{'session_id': x[0], 'mp_id': x[1], 'name': x[2] + " " + x[3] } for x in query_res]
 
 
 def getDocs(sessionID):
-    query_res = fetchDB('SELECT sessionid, docname, url FROM docs WHERE sessionid=%s;', (sessionID,))
+    query_res = db_conn.fetchDB('SELECT sessionid, docname, url FROM docs WHERE sessionid=%s;', (sessionID,))
     if query_res == None:
         return []
     return [{'session_id': [x[0]], 'docname': x[1], 'url': x[2]} for x in query_res]
 
 
 def getContent(sessionID):
-    query_res = fetchDB('SELECT topics FROM "content" WHERE sessionID=%s;', (sessionID,))
+    query_res = db_conn.fetchDB('SELECT topics FROM "content" WHERE sessionID=%s;', (sessionID,))
     if query_res == None:
         return []
     return [x[0] for x in query_res]
@@ -159,24 +160,3 @@ def parse_datetime_value(value):
         return datetime.date.fromisoformat(value)
     except (ValueError, TypeError):
         raise ValueError(f'"{value}" is not a valid ISO 8601 string')
-
-
-
-def fetchDB(query, arguments=(None, )):
-    for i in range(DB_RETRY):
-        if i == 2:
-            print('DB connection broken. Aborting')
-            raise psycopg2.Error('Can not connect to DB')
-        try:
-            cur = db_conn.conn.cursor()
-            cur.execute(query, arguments)
-            db_res = cur.fetchall()
-            cur.close()
-            return db_res
-        except psycopg2.Error:
-            print('DB connection broken. Retry...')
-            db_conn.conn = db_conn.createConnection()
-            time.sleep(0.5)
-    return
-
-
