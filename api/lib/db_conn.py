@@ -1,9 +1,8 @@
 import os
 import dotenv
 import psycopg2
-import const
 import time
-from const import DB_RETRY
+from .const import DB_RETRY
 
 class DB_Connection:
     def __init__(self):
@@ -54,7 +53,7 @@ class DB_Connection:
 
 
 db_conn = DB_Connection()
-for i in range(const.DB_RETRY):
+for i in range(DB_RETRY):
     if db_conn.conn.closed != 0:
         time.sleep(0.5)
         db_conn.createConnection()

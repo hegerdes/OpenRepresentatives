@@ -1,20 +1,19 @@
-import time
-import psycopg2
+#!/usr/bin/env python3
 import json
 import datetime
 import ariadne
 import re
-from const import COMMENT as CT
-from db_conn import db_conn
+from .const import COMMENT as CT
+from .db_conn import db_conn
 
 comment_pattern = re.compile("<C>\d{16}<\/C>")
 comment_pattern_blank = re.compile(" <C>\d{16}<\/C>")
 
-query = ariadne.ObjectType("Query")
-talk = ariadne.ObjectType("Talk")
+query_resolver = ariadne.ObjectType("Query")
+talk_resolver = ariadne.ObjectType("Talk")
 date_scalar = ariadne.ScalarType("Date")
 
-@talk.field("talk")
+@talk_resolver.field("talk")
 def resultTalk(obj, info, with_comments=True):
     query = 'SELECT commentid, "content" FROM "comments" where '
     # print('Info:',info, '\nKARGW:', with_comments)
@@ -48,7 +47,7 @@ def resultTalk(obj, info, with_comments=True):
         return o_talk
 
 
-@query.field('talks')
+@query_resolver.field('talks')
 def resolve_talks(obj, info, session_id=None, talk_id=None, date=None, mp_id=None, mp_name=None):
     query = 'SELECT talkid, speakerid, speakername, sessionid, "date", talk FROM talks WHERE '
     params = ['', []]
@@ -78,7 +77,7 @@ def resolve_talks(obj, info, session_id=None, talk_id=None, date=None, mp_id=Non
     return [{'talk_id': x[0], 'mp_id': x[1], 'name':x[2], 'session_id': x[3], 'date': x[4], 'talk': x[5]} for x in query_res]
 
 
-@query.field('sessions')
+@query_resolver.field('sessions')
 def resolv_sessions(obj, info, first=None, last=None):
     print('obj',obj)
     print('info',info)
@@ -92,7 +91,7 @@ def resolv_sessions(obj, info, first=None, last=None):
         return {}
     return fill_session_res(obj, info, query_res)
 
-@query.field('session')
+@query_resolver.field('session')
 def resolv_session(obj, info, session_id=None, date=None):
     print('obj',obj)
     print('info',info)
