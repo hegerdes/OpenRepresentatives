@@ -6,13 +6,13 @@ from flask_setup import app
 import os
 
 schema_file = ariadne.load_schema_from_path("schema.graphql")
-query = ariadne.ObjectType("Query")
-query.set_field("sessions", resolvers.resolv_sessions)
-query.set_field("session", resolvers.resolv_session)
 
+
+# Use resolvers
 schema = ariadne.make_executable_schema(
-    schema_file, query, ariadne.snake_case_fallback_resolvers
+    schema_file, resolvers.query, resolvers.talk, resolvers.date_scalar, ariadne.snake_case_fallback_resolvers
 )
+
 
 @app.route('/')
 def hello():

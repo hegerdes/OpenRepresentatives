@@ -1,1 +1,2 @@
-DBRETRY = 3
+DB_RETRY = 3
+COMMENT = '__COMMENT__'
