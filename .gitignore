@@ -13,3 +13,7 @@ tmp/*.json
 #Secrets
 .env
 api/.vscode/settings.json
+
+#Project files
+*/.vscode/**
+openRepscode-workspace.code-workspace
