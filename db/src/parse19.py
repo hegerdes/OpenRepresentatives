@@ -60,8 +60,8 @@ def handleSessionstart(session):
             else:
                 welcome[-1] += normalize(session[i].text)
         elif session[i].tag == COMMENT and session[i].text:
-            com_id = str(hash_calc(session[i].text))
-            comments[com_id] = {'content':normalize(session[i].text), 'type':COMMENT}
+            com_id = hash_calc(session[i].text)
+            comments[com_id] = {'content':normalize(session[i].text[1:-1]), 'type':COMMENT}
             welcome[-1] += ' <C>' + com_id + '</C> '
         elif session[i].tag == COMMENT_NAME and session[i].text:
             if 'Präsident' in session[i].text:
@@ -88,15 +88,15 @@ def handeTagesordnung(topic, praesident='Präsident None: '):
         if entry.tag == PARAGRAPH and entry.text and len(entry.text) > 1:
             if len(res) > 0 and type(res[-1]) == dict:
                 if curr_speaker == old_speaker:
-                    res[-1]['talk'][0] += normalize(entry.text)
+                    res[-1]['talk'][0] += ' ' + normalize(entry.text)
                 else:
                     old_speaker = curr_speaker
                     res.append({'name':curr_speaker, 'talk': [normalize(entry.text)], 'com': []})
             else:
                 res.append({'name':praesident, 'talk': [normalize(entry.text)], 'com': []})
         elif entry.tag == COMMENT:
-            com_id = str(hash_calc(entry.text))
-            comments[com_id] = {'content':normalize(entry.text), 'type':COMMENT}
+            com_id = hash_calc(entry.text)
+            comments[com_id] = {'content':normalize(entry.text[1:-1]), 'type':COMMENT}
             if len(res) > 0:
                 res[-1]['talk'][0] += '<C>' + com_id + '</C> '
                 res[-1]['com'].append(com_id)
@@ -138,10 +138,12 @@ def handleRede(rede, praesident='Präsident None: '):
             elif 'klasse' in rede[i].attrib and rede[i].attrib['klasse'] in ('AL_Partei', 'AL_Namen'):
                 continue
             elif rede[i].text:
+                if len(talk[-1]) > 0 and talk[-1][-1] != ' ':
+                    talk[-1] += ' '
                 talk[-1] += rede[i].text
         if rede[i].tag == COMMENT:
-            com_id = str(hash_calc(rede[i].text))
-            comments[com_id] = {'content':normalize(rede[i].text),'type': COMMENT}
+            com_id = hash_calc(rede[i].text)
+            comments[com_id] = {'content':normalize(rede[i].text[1:-1]),'type': COMMENT}
             talk[-1] += ' <C>' + com_id + '</C> '
         if rede[i].tag == COMMENT_NAME and rede[i].text:
             if 'räsident' in rede[i].text:
@@ -262,7 +264,7 @@ def normalize(input, type='NFC'):
 
 @cache
 def hash_calc(input):
-    return int(hashlib.sha256(input.encode('utf-8')).hexdigest(), 16) % 10**16
+    return str(int(hashlib.sha256(input.encode('utf-8')).hexdigest(), 16) % 10**16).ljust(16,'0')
 
 def getXMLFileList(datapath):
     print('Checking files...')
