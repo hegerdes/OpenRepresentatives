@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import xml.etree.cElementTree as ET
 from functools import cache
 from datetime import date
@@ -5,7 +6,8 @@ import unicodedata
 import hashlib
 import json
 import re
-import download19
+from .download19 import getListXML, downloadXMLs
+# import download19
 import os
 
 
@@ -269,7 +271,7 @@ def hash_calc(input):
 def getXMLFileList(datapath):
     print('Checking files...')
     try:
-        download19.downloadXMLs(download19.getListXML(), datapath)
+        downloadXMLs(getListXML(), datapath)
         return [f for f in os.listdir(datapath) if os.path.isfile(os.path.join(datapath, f)) and f[-3:] == 'xml']
     except FileNotFoundError:
         print('File not found. Please check')
@@ -286,10 +288,10 @@ def parse(datapath):
 
     if not prot_files:
         print('No files found! Downloading')
-        download19.downloadXMLs(download19.getListXML())
+        downloadXMLs(getListXML())
         prot_files = getXMLFileList(datapath)
 
-    urls = {url[-14:]: url for url in download19.getListXML()}
+    urls = {url[-14:]: url for url in getListXML()}
     for data_file in prot_files:
         all_sessions[data_file] = {}
         all_sessions[data_file]['topics'] = []

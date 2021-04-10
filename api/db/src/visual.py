@@ -1,14 +1,13 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-import parse19
+from .parse19 import parse, getData, getSpeaker
 import json
-
 
 
 if __name__ == '__main__':
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    all_sessions, all_speaker, all_comments = parse19.getData('../data_out/')
+    all_sessions, all_speaker, all_comments = getData('../data_out/')
 
 
     print('SpeakerLen', len(all_speaker), all_speaker)

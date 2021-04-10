@@ -1,8 +1,8 @@
 #Data dir
 .vscode/*
-db_files/*
-db/data/*/*.xml
-db/data/pp18-data/BUNDESTAGSDOKUMENTE.dtd
+api/db_files/*
+api/db/data/*/*.xml
+api/db/data/pp18-data/BUNDESTAGSDOKUMENTE.dtd
 tmp/*.json
 
 #Compiled files

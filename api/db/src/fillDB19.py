@@ -1,9 +1,10 @@
 import psycopg2
-import parse19
+from .parse19 import parse, getData, getSpeaker
 import os
 import dotenv
 import re
-import visual
+import time
+from .visual import *
 
 
 DOC_BASE_URL = "https://dip21.bundestag.de/dip21/btd/{}/{}/{}.pdf"
@@ -353,13 +354,15 @@ def filterNewEntrys(conn, all_sessions, all_speaker, all_comments):
         print('Found {} new protocoll(s)'.format(len(new_sessions)))
     return new_sessions, new_speaker_out, new_comments_out
 
-if __name__ == '__main__':
+
+def updateDB():
+    time.sleep(5)
     data_dir = '../data/pp19-data/'
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
     conn = createConnection()
-    # all_sessions, all_speaker, all_comments = parse19.getData('../data_out/')
-    all_sessions, all_speaker, all_comments = parse19.parse(data_dir)
+    # all_sessions, all_speaker, all_comments = getData('../data_out/')
+    all_sessions, all_speaker, all_comments = parse(data_dir)
     createTablesCmd = (head, content, parla, docs, missing, comments, talks, talk_com)
     print('Checking DB...')
 
@@ -380,3 +383,6 @@ if __name__ == '__main__':
     # Queries
     conn.commit()
     conn.close()
+
+if __name__ == '__main__':
+    updateDB()
