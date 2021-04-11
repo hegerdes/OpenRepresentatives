@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-from .parse19 import parse, getData, getSpeaker
+from parse19 import parse, getData, getSpeaker
 import json
 
 

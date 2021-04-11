@@ -6,7 +6,7 @@ import unicodedata
 import hashlib
 import json
 import re
-from .download19 import getListXML, downloadXMLs
+from download19 import getListXML, downloadXMLs
 # import download19
 import os
 
