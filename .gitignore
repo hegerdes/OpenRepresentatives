@@ -13,6 +13,7 @@ tmp/*.json
 #Secrets
 .env
 api/.vscode/settings.json
+api/cache/redis.conf
 
 #Project files
 */.vscode/**

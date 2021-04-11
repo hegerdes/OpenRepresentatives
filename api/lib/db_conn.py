@@ -1,8 +1,9 @@
 import os
+import redis
 import dotenv
 import psycopg2
 import time
-from .const import DB_RETRY
+from .const import DB_RETRY, USE_REDIS
 
 class DB_Connection:
     def __init__(self):
@@ -50,8 +51,26 @@ class DB_Connection:
         return
 
 
+class CachConn:
+    def __init__(self):
+        self.conn = self.createConnection()
 
+    def createConnection(self):
+        if os.environ.get('REDIS_PW'):
+            conn = redis.Redis(
+                host=os.environ.get('REDIS_HOST', '127.0.0.1'),
+                port=6379, db=0,
+                password=os.environ.get('REDIS_PW'))
+            USE_REDIS = True
+        return conn
 
+    def set(self, key, value):
+        return self.conn.set(key, value)
+
+    def get(self, key):
+        return self.conn.get(key)
+
+cache_conn = CachConn()
 db_conn = DB_Connection()
 for i in range(DB_RETRY):
     if db_conn.conn.closed != 0:

@@ -7,8 +7,11 @@ services:
       context: ./api
     depends_on:
       - db
+      - cache
     # restart: always
     environment:
+      REDIS_PW: ${REDIS_PW}
+      REDIS_HOST: cache
       POSGRES_PW: ${POSGRES_PW}
       POSGRES_USER: ${POSGRES_USER}
       POSGRES_DB: ${POSGRES_DB}
@@ -18,9 +21,16 @@ services:
       FLASK_ENV: development
       DOCKER_ENV: isSet
     volumes:
-      - ./api:/app/api
+      - ./api:/app/api  #For development
     ports:
       - 5000:5000
+
+  cache:
+    image: redis:6.2-buster
+    command: redis-server /usr/local/etc/redis/redis.conf
+    restart: always
+    volumes:
+      - ./api/cache:/usr/local/etc/redis/
 
   db:
     image: postgres:alpine

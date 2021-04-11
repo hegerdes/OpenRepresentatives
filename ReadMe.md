@@ -16,6 +16,7 @@ Things to do:
  * Save it to a database ✔
  * Create a WebAPI 🏃‍♂️
  * GraphQL API 🏃‍♂️
+ * Cache 🏃‍♂️
  * Simple Info page calling the API
  * Add more open data
     * Scrape Bundestag
