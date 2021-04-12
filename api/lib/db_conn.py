@@ -22,6 +22,7 @@ class DB_Connection:
                     format(os.getenv('POSGRES_DB'), os.getenv('POSGRES_USER'), os.getenv('POSGRES_PW'),
                     os.getenv('POSGRES_HOST'), os.getenv('POSGRES_PORT')))
             else:
+                # Local .env file
                 dotenv.load_dotenv('../.env')
                 conn = psycopg2.connect('dbname={} user={} password={} host={} port={}'.
                     format(os.getenv('POSGRES_DB'), os.getenv('POSGRES_USER'), os.getenv('POSGRES_PW'),
@@ -51,7 +52,7 @@ class DB_Connection:
         return
 
 
-class CachConn:
+class CacheConn:
     def __init__(self):
         self.conn = self.createConnection()
 
@@ -62,15 +63,17 @@ class CachConn:
                 port=6379, db=0,
                 password=os.environ.get('REDIS_PW'))
             USE_REDIS = True
-        return conn
+            return conn
 
     def set(self, key, value):
-        return self.conn.set(key, value)
+        if self.conn:
+            return self.conn.set(key, value)
 
     def get(self, key):
-        return self.conn.get(key)
+        if self.conn:
+            return self.conn.get(key)
 
-cache_conn = CachConn()
+cache_conn = CacheConn()
 db_conn = DB_Connection()
 for i in range(DB_RETRY):
     if db_conn.conn.closed != 0:
