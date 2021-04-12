@@ -5,8 +5,8 @@ WORKDIR /app/api
 
 RUN apt-get update && apt-get install libpq-dev gcc -y \
     && python3 -m pip install -r requirements.txt \
-    && apt-get remove gcc -y && apt-get autoremove -y \
-    && apt-get clean
+    && apt-get remove gcc libc-dev -y && apt-get autoremove -y \
+    && apt-get clean && apt-get autoclean
 
 EXPOSE 5000
 

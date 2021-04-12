@@ -1,2 +1,6 @@
-db/data/*
-db/data_out/*
+db/data
+db/data_out
+__pychache__
+env
+.vscode
+cache
