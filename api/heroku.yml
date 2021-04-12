@@ -1,0 +1,9 @@
+setup:
+  addons:
+    - plan: heroku-postgresql
+      as: DATABASE
+  config:
+    IS_HEROKU: "YES"
+build:
+  docker:
+    worker: Dockerfile
