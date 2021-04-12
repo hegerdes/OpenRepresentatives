@@ -15,7 +15,70 @@ mp_resolver = ariadne.ObjectType("MP")              # For talks filed
 session_resolver = ariadne.ObjectType("Session")    # For talks field
 date_scalar = ariadne.ScalarType("Date")
 
-@query_resolver.field('getMPs')
+@query_resolver.field('getMissing')
+@session_resolver.field('missing')
+def getMissingMPs(obj, info, session_id = None, date=None, mp_id=None, mp_name=None, party=None):
+    query = 'SELECT distinct m.resid, m.f_name, m.s_name, role, party FROM parliaments p join missing m on p.resid = m.resid JOIN head h on h.headid = m.sessionid WHERE '
+    params = []
+
+    if obj:
+        if 'id' in obj: session_id = obj['id']
+        if 'date' in obj: date = obj['date']
+
+    if session_id:
+        query += 'm.sessionid = %s and '
+        params.append(int(session_id))
+    if date:
+        query += 'h.date = %s and '
+        params.append(date)
+    if mp_id:
+        query += 'p.resid = %s and '
+        params.append(int(mp_id))
+    if mp_name:
+        query += 'RTRIM(LTRIM(CONCAT(UPPER(p.f_name) ,\' \' ,UPPER(p.s_name)))) LIKE %s and '
+        params.append(mp_name.upper())
+    if party:
+        query += 'UPPER(party) LIKE %s and '
+        params.append(party.upper())
+    query += '1=1;'
+
+    query_res = db_conn.fetchDB(query, params)
+    if query_res == None or len(query_res) == 0:
+        return []
+
+    return [{'mp_id': x[0], 'f_name': x[1], 's_name': x[2], 'role': x[3], 'party':x[4]} for x in query_res]
+
+
+
+
+@mp_resolver.field('missed')
+def getMissedSessions(obj, info, date=None, mp_id=None, mp_name=None):
+    all_sessions = {session['id']: session for session in resolv_sessions(obj,info)}
+    query = 'SELECT sessionid, resid, f_name, s_name FROM missing WHERE '
+    params = []
+
+    if obj:
+        if 'mp_id' in obj: mp_id = obj['mp_id']
+        if 'f_name' in obj and 's_name' in obj: mp_name = obj['f_name'] + ' ' + obj['s_name']
+
+    if date:
+        query += 'date = %s and '
+        params.append(date)
+    if mp_id:
+        query += 'resid = %s and '
+        params.append(int(mp_id))
+    if mp_name:
+        query += 'RTRIM(LTRIM(CONCAT(UPPER(f_name) ,\' \' ,UPPER(s_name)))) LIKE %s and '
+        params.append(mp_name.upper())
+    query += '1=1;'
+
+    query_res = db_conn.fetchDB(query, params)
+    if query_res == None or len(query_res) == 0:
+        return []
+    return [all_sessions[x[0]] for x in query_res]
+
+
+@query_resolver.field('getMP')
 def resolveMP(obj, info, mp_id=None, name=None):
     res = resolveMPs(obj, info, mp_id=mp_id, name=name)
     return res[0] if len(res) > 0 else None
@@ -34,14 +97,14 @@ def resolveMPs(obj, info, mp_id=None, name=None, party=None, role=None):
         query += 'UPPER(role) LIKE %s and '
         params.append(role.upper())
     if name:
-        query += 'RTRIM(LTRIM(CONCAT(UPPER(f_name) ,' ' ,UPPER(s_name)))) LIKE = %s and '
+        query += 'RTRIM(LTRIM(CONCAT(UPPER(f_name) ,\' \' ,UPPER(s_name)))) LIKE %s and '
         params.append(name.upper())
     query += '1=1;'
 
     query_res = db_conn.fetchDB(query, tuple(params))
     if query_res == None or len(query_res) == 0:
         return []
-    # talks handeld by own resolver if requested
+
     return [{'mp_id': x[0], 'f_name': x[1], 's_name': x[2], 'party': x[3], 'role': x[4]} for x in query_res]
 
 
@@ -143,10 +206,9 @@ def resolve_talks(obj, info, session_id=None, talk_id=None, date=None, mp_id=Non
 
 @query_resolver.field('getSessions')
 def resolv_sessions(obj, info, first=None, last=None):
-    print('First: {}, Last: {}'.format(first,last))
-
     if first == None: first = 0     # Is periode 0 and session 0
     if last == None: last = 99999   # Is periode 99 and session 999
+    print('First: {}, Last: {}'.format(first,last))
 
     query_res = db_conn.fetchDB('SELECT headid, "session", "period", publisher, "type", title, place, "date", url FROM head WHERE headid >= %s and headid <= %s ;', (first, last))
     if query_res == None or len(query_res) == 0:
@@ -168,7 +230,7 @@ def resolv_session(obj, info, session_id=None, date=None):
 
 
 
-def fill_session_res(obj, query_request, query_data):
+def fill_session_res(obj, info, query_data):
     out = []
     for data in query_data:
         out.append({
@@ -180,20 +242,13 @@ def fill_session_res(obj, query_request, query_data):
         'publisher': data[3],
         'date': data[7],
         'url': data[8],
-        'missing': getMissing(obj, query_request, session_id=data[0])
+        # 'missing': getMissing(obj, query_request, session_id=data[0])
         # content is done by own resolver
         # talks is done by own resolver
         # docs is done by own resolver
         })
     return out
 
-#ToDo: Arguments: session_id: ID, date: Date, mp_id: ID, mp_name: String
-@query_resolver.field('getMissing')
-def getMissing(obj, info, session_id=None, date=None, mp_id=None, mp_name=None):
-    query_res = db_conn.fetchDB('select sessionid, resid, f_name, s_name FROM missing WHERE sessionid=%s;', (session_id,))
-    if query_res == None or len(query_res) == 0:
-        return []
-    return [{'session_id': x[0], 'mp_id': x[1], 'name': x[2] + " " + x[3] } for x in query_res]
 
 @session_resolver.field('content')
 @query_resolver.field('getContent')
