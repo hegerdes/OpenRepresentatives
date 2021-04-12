@@ -19,17 +19,20 @@ services:
       POSGRES_HOST: db
       FLASK_ENV: app.py
       FLASK_ENV: development
-      DOCKER_ENV: isSet
+      DOCKER_ENV: "True"
     volumes:
-      - ./api:/app/api  #For development
+      #For development overlay the src files in the image
+      - ./api:/app/api
     ports:
       - 5000:5000
 
   cache:
     image: redis:6.2-buster
+    # Override the start command to the used config
     command: redis-server /usr/local/etc/redis/redis.conf
     restart: always
     volumes:
+      # Config
       - ./api/cache:/usr/local/etc/redis/
 
   db:
@@ -40,9 +43,10 @@ services:
       POSTGRES_USER: ${POSGRES_USER}
       POSTGRES_DB: ${POSGRES_DB}
     ports:
+      # Use this only for development.
+      # Does not need to be running/exposed in production
       - ${POSGRES_PORT}:${POSGRES_PORT}
     volumes:
-      # - ./db_files:/var/lib/postgresql/data
       - pg_data:/var/lib/postgresql/data
 
 volumes:

@@ -10,6 +10,13 @@ Right now it does:
  * Puts (*almost*) everything into a DB
  * Starts a flask backend-server
 
+
+## How to setup dev:
+ * Rename the ``.env_example`` to ``.env``
+ * Rename the ``api/db/cache/redis.conf.example`` to ``api/db/cache/redis.conf``
+ * Change the pw in redis.conf to the one in your .env file [HowTo](https://stackink.com/how-to-set-password-for-redis-server/)
+ * Run docker-compose up
+
 ## ToDo:
 Things to do:
  * Make parsing more robust ✔
