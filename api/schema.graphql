@@ -9,7 +9,9 @@
         getTalks(session_id: ID, talk_id: ID, date: Date, mp_id: ID, mp_name: String): [Talk]!
         getDocs(docname: String, date: Date, session_id: ID): [Doc]!
         getContent(session_id: ID, date: Date): [String]!
-        getMissing(session_id: ID, date: Date, mp_id: ID, mp_name: String): [Missing]!
+        getMissing(session_id: ID, date: Date, mp_id: ID, mp_name: String): [Missing]! #TODO
+        getMPs(mp_id:ID, name:String, party: String, role: String): [MP]!
+        getMP(mp_id:ID, name:String): MP
     }
 
     type Session {
@@ -56,5 +58,5 @@
     type Missing{
         session_id: ID!
         name: String!
-        mp_id: ID #To MP
+        mp: MP
     }

@@ -9,10 +9,40 @@ from .db_conn import db_conn, cache_conn
 comment_pattern = re.compile("<C>\d{16}<\/C>")
 comment_pattern_blank = re.compile(" <C>\d{16}<\/C>")
 
-query_resolver = ariadne.ObjectType("Query")
-talk_resolver = ariadne.ObjectType("Talk")
-session_resolver = ariadne.ObjectType("Session")
+query_resolver = ariadne.ObjectType("Query")        # General query
+talk_resolver = ariadne.ObjectType("Talk")          # For talk argument filed
+mp_resolver = ariadne.ObjectType("MP")              # For talks filed
+session_resolver = ariadne.ObjectType("Session")    # For talks field
 date_scalar = ariadne.ScalarType("Date")
+
+@query_resolver.field('getMPs')
+def resolveMP(obj, info, mp_id=None, name=None):
+    res = resolveMPs(obj, info, mp_id=mp_id, name=name)
+    return res[0] if len(res) > 0 else None
+
+@query_resolver.field('getMPs')
+def resolveMPs(obj, info, mp_id=None, name=None, party=None, role=None):
+    query = 'SELECT resid, f_name, s_name, party, role FROM parliaments WHERE '
+    params = []
+    if mp_id:
+        query += 'resid = %s and '
+        params.append(int(mp_id))
+    if party:
+        query += 'UPPER(party) LIKE %s and '
+        params.append(party.upper())
+    if role:
+        query += 'UPPER(role) LIKE %s and '
+        params.append(role.upper())
+    if name:
+        query += 'RTRIM(LTRIM(CONCAT(UPPER(f_name) ,' ' ,UPPER(s_name)))) LIKE = %s and '
+        params.append(name.upper())
+    query += '1=1;'
+
+    query_res = db_conn.fetchDB(query, tuple(params))
+    if query_res == None or len(query_res) == 0:
+        return []
+    # talks handeld by own resolver if requested
+    return [{'mp_id': x[0], 'f_name': x[1], 's_name': x[2], 'party': x[3], 'role': x[4]} for x in query_res]
 
 
 @session_resolver.field('docs')
@@ -21,9 +51,9 @@ def resolveDocs(obj, info, docname= None, date = None, session_id=None):
     query = 'SELECT d.sessionid , d.docname, h."date", d.url FROM docs d JOIN head h ON d.sessionid=h.headid WHERE '
     params = []
     if obj:
-        session_id = obj['id']
+        if 'id' in obj: session_id = obj['id']
 
-    # Use given docname find doc name by sessionid/date
+    # Use given docname or find doc name by sessionid/date
     docs = [docname] if docname else getDocName(session_id, date)
     for docname_res in docs:
         query += 'docname=%s or '
@@ -32,10 +62,11 @@ def resolveDocs(obj, info, docname= None, date = None, session_id=None):
     query = query[:-3] + ';'
 
     query_res = db_conn.fetchDB(query, params)
-    if query_res == None:
+    if query_res == None or len(query_res) == 0:
         return []
 
     out = {}
+    # Ony one result entry per session. One doc can be in n sessions
     for x in query_res:
         if x[1] in out and x[0] not in out[x[1]]['session_ids']:
             out[x[1]]['session_ids'].append(x[0])
@@ -43,7 +74,6 @@ def resolveDocs(obj, info, docname= None, date = None, session_id=None):
             out[x[1]] = {'session_ids': [x[0]], 'docname': x[1], 'date': x[2], 'url': x[3]}
 
     return list(out.values())
-
 
 
 @talk_resolver.field('talk')
@@ -66,7 +96,7 @@ def resultTalk(obj, info, with_comments=True):
         query = query[:-3] + ';'
 
         query_res = db_conn.fetchDB(query, tuple(query_params))
-        if query_res == None:
+        if query_res == None or len(query_res) == 0:
             return ''
 
         comments = [{'id': x[0], 'content': x[1], **id_map[str(x[0])]} for x in query_res]
@@ -77,9 +107,14 @@ def resultTalk(obj, info, with_comments=True):
              o_talk = o_talk.replace(entry['com_str'], '{} {} {}'.format(CT, entry['content'], CT))
         return o_talk
 
-
+@session_resolver.field('talks')
+@mp_resolver.field('talks')
 @query_resolver.field('getTalks')
 def resolve_talks(obj, info, session_id=None, talk_id=None, date=None, mp_id=None, mp_name=None):
+    if obj:
+        if 'mp_id' in obj: mp_id = obj['mp_id']
+        if 'id' in obj: session_id = obj['id']
+
     query = 'SELECT talkid, speakerid, speakername, sessionid, "date", talk FROM talks WHERE '
     params = []
     if session_id:
@@ -94,14 +129,14 @@ def resolve_talks(obj, info, session_id=None, talk_id=None, date=None, mp_id=Non
     if mp_id:
         query += 'speakerid = %s and '
         params.append(int(mp_id))
-    if mp_id:
-        query += 'mp_name = %s and '
-        params.append(mp_name)
+    if mp_name:
+        query += 'UPPER(mp_name) LIKE %s and '
+        params.append(mp_name.upper())
     query += '1=1;'
 
     query_res = db_conn.fetchDB(query, tuple(params))
 
-    if query_res == None:
+    if query_res == None or len(query_res) == 0:
         return []
     return [{'talk_id': x[0], 'mp_id': x[1], 'name':x[2], 'session_id': x[3], 'date': x[4], 'talk': x[5]} for x in query_res]
 
@@ -114,7 +149,7 @@ def resolv_sessions(obj, info, first=None, last=None):
     if last == None: last = 99999   # Is periode 99 and session 999
 
     query_res = db_conn.fetchDB('SELECT headid, "session", "period", publisher, "type", title, place, "date", url FROM head WHERE headid >= %s and headid <= %s ;', (first, last))
-    if query_res == None:
+    if query_res == None or len(query_res) == 0:
         return {}
     return fill_session_res(obj, info, query_res)
 
@@ -129,15 +164,12 @@ def resolv_session(obj, info, session_id=None, date=None):
 
     if query_res == None or len(query_res) == 0:
         return {}
-    print(session_id, query_res)
     return fill_session_res(obj, info, query_res)[0]
 
 
 
 def fill_session_res(obj, query_request, query_data):
     out = []
-    # TODO: Check for only requestet params
-    #print('Request', query_request.context.json['query'], '\nobj:', obj)
     for data in query_data:
         out.append({
         'id': data[0],
@@ -148,22 +180,27 @@ def fill_session_res(obj, query_request, query_data):
         'publisher': data[3],
         'date': data[7],
         'url': data[8],
-        'talks': resolve_talks(obj, query_request, session_id=data[0]),
-        'content': getContent(obj, query_request,session_id=data[0]),
         'missing': getMissing(obj, query_request, session_id=data[0])
+        # content is done by own resolver
+        # talks is done by own resolver
         # docs is done by own resolver
         })
     return out
 
+#ToDo: Arguments: session_id: ID, date: Date, mp_id: ID, mp_name: String
 @query_resolver.field('getMissing')
 def getMissing(obj, info, session_id=None, date=None, mp_id=None, mp_name=None):
     query_res = db_conn.fetchDB('select sessionid, resid, f_name, s_name FROM missing WHERE sessionid=%s;', (session_id,))
-    if query_res == None:
+    if query_res == None or len(query_res) == 0:
         return []
     return [{'session_id': x[0], 'mp_id': x[1], 'name': x[2] + " " + x[3] } for x in query_res]
 
+@session_resolver.field('content')
 @query_resolver.field('getContent')
 def getContent(obj, info, session_id=None, date=None):
+    if obj:
+        if 'id' in obj: session_id = obj['id']
+
     query= 'SELECT topics FROM "content" WHERE '
     params = []
     if session_id ==None and date == None:
@@ -178,12 +215,12 @@ def getContent(obj, info, session_id=None, date=None):
     query += '1=1;'
 
     query_res = db_conn.fetchDB(query, tuple(params))
-    if query_res == None:
+    if query_res == None or len(query_res) == 0:
         return []
     return [x[0] for x in query_res]
 
 def getDocName(session_id = None, date = None):
-    # Gets all doc names by id/name. If both none return all docnames
+    # Gets all doc names by id/name. If both are None return all docnames
     query = 'SELECT docname FROM docs WHERE '
     params = []
     if session_id:
@@ -195,12 +232,10 @@ def getDocName(session_id = None, date = None):
     query += '1=1;'
     query_res = db_conn.fetchDB(query, params)
 
-    if query_res == None:
+    if query_res == None or len(query_res) == 0:
         return []
 
     return [x[0] for x in query_res]
-
-
 
 @date_scalar.serializer
 def serialize_date(value):
