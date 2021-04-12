@@ -51,12 +51,17 @@ def checkDB():
 
 
 if __name__ == '__main__':
-    os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    worker = threading.Thread(target=checkDB, daemon=True)
-    if os.environ.get('FLASK_ENV', 'development') == 'production':
-            worker.start()
-    else:
-        app.testing = True
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+    try:
+        os.chdir(os.path.dirname(os.path.abspath(__file__)))
+        worker = threading.Thread(target=checkDB, daemon=True)
+        worker.start()
+        if os.environ.get('FLASK_ENV', 'development') == 'production':
+                worker.start()
+        else:
+            app.testing = True
+        port = int(os.environ.get('PORT', 5000))
+        app.run(host='0.0.0.0', port=port)
 
+    except KeyboardInterrupt:
+        print('Interrupt received! Closing...')
+        worker.join()

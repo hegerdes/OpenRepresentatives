@@ -73,6 +73,7 @@ class CacheConn:
         if self.conn:
             return self.conn.get(key)
 
+cache_conn = None
 cache_conn = CacheConn()
 db_conn = DB_Connection()
 for i in range(DB_RETRY):
