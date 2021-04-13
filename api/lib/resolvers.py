@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import json
 import datetime
 import ariadne
 import re
@@ -13,7 +12,7 @@ query_resolver = ariadne.ObjectType("Query")        # General query
 talk_resolver = ariadne.ObjectType("Talk")          # For talk argument filed
 mp_resolver = ariadne.ObjectType("MP")              # For talks filed
 session_resolver = ariadne.ObjectType("Session")    # For talks field
-date_scalar = ariadne.ScalarType("Date")
+date_scalar = ariadne.ScalarType("Date")            # Date de-seralise
 
 @query_resolver.field('getMissing')
 @session_resolver.field('missing')
@@ -101,7 +100,7 @@ def resolveMPs(obj, info, mp_id=None, name=None, party=None, role=None):
         params.append(name.upper())
     query += '1=1;'
 
-    query_res = db_conn.fetchDB(query, tuple(params))
+    query_res = db_conn.fetchDB(query, params)
     if query_res == None or len(query_res) == 0:
         return []
 
@@ -129,8 +128,8 @@ def resolveDocs(obj, info, docname= None, date = None, session_id=None):
         return []
 
     out = {}
-    # Ony one result entry per session. One doc can be in n sessions
     for x in query_res:
+    # Ony one result entry per session.
         if x[1] in out and x[0] not in out[x[1]]['session_ids']:
             out[x[1]]['session_ids'].append(x[0])
         else:
@@ -158,7 +157,7 @@ def resultTalk(obj, info, with_comments=True):
         if len(query_params) == 0: return obj['talk']
         query = query[:-3] + ';'
 
-        query_res = db_conn.fetchDB(query, tuple(query_params))
+        query_res = db_conn.fetchDB(query, query_params)
         if query_res == None or len(query_res) == 0:
             return ''
 
@@ -197,7 +196,7 @@ def resolve_talks(obj, info, session_id=None, talk_id=None, date=None, mp_id=Non
         params.append(mp_name.upper())
     query += '1=1;'
 
-    query_res = db_conn.fetchDB(query, tuple(params))
+    query_res = db_conn.fetchDB(query, params)
 
     if query_res == None or len(query_res) == 0:
         return []
@@ -208,7 +207,6 @@ def resolve_talks(obj, info, session_id=None, talk_id=None, date=None, mp_id=Non
 def resolv_sessions(obj, info, first=None, last=None):
     if first == None: first = 0     # Is periode 0 and session 0
     if last == None: last = 99999   # Is periode 99 and session 999
-    print('First: {}, Last: {}'.format(first,last))
 
     query_res = db_conn.fetchDB('SELECT headid, "session", "period", publisher, "type", title, place, "date", url FROM head WHERE headid >= %s and headid <= %s ;', (first, last))
     if query_res == None or len(query_res) == 0:
@@ -231,6 +229,7 @@ def resolv_session(obj, info, session_id=None, date=None):
 
 
 def fill_session_res(obj, info, query_data):
+    # Fields missing, content, talks, docs are done by own resolvers
     out = []
     for data in query_data:
         out.append({
@@ -242,10 +241,6 @@ def fill_session_res(obj, info, query_data):
         'publisher': data[3],
         'date': data[7],
         'url': data[8],
-        # 'missing': getMissing(obj, query_request, session_id=data[0])
-        # content is done by own resolver
-        # talks is done by own resolver
-        # docs is done by own resolver
         })
     return out
 
@@ -269,7 +264,7 @@ def getContent(obj, info, session_id=None, date=None):
         params.append(date)
     query += '1=1;'
 
-    query_res = db_conn.fetchDB(query, tuple(params))
+    query_res = db_conn.fetchDB(query, params)
     if query_res == None or len(query_res) == 0:
         return []
     return [x[0] for x in query_res]

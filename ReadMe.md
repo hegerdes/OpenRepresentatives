@@ -21,8 +21,9 @@ Right now it does:
 Things to do:
  * Make parsing more robust ✔
  * Save it to a database ✔
+ * GraphQL API ✔
+ * Logging 🏃‍♂️
  * Create a WebAPI 🏃‍♂️
- * GraphQL API 🏃‍♂️
  * Cache 🏃‍♂️
  * Simple Info page calling the API
  * Add more open data
