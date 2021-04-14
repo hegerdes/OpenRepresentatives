@@ -3,7 +3,7 @@ import datetime
 import ariadne
 import re
 from .const import COMMENT as CT
-from .db_conn import db_conn, cache_conn
+from .db_conn import get_db_conn
 
 comment_pattern = re.compile("<C>\d{16}<\/C>")
 comment_pattern_blank = re.compile(" <C>\d{16}<\/C>")
@@ -41,7 +41,7 @@ def getMissingMPs(obj, info, session_id = None, date=None, mp_id=None, mp_name=N
         params.append(party.upper())
     query += '1=1;'
 
-    query_res = db_conn.fetchDB(query, params)
+    query_res = get_db_conn().fetchDB(query, params)
     if query_res == None or len(query_res) == 0:
         return []
 
@@ -71,7 +71,7 @@ def getMissedSessions(obj, info, date=None, mp_id=None, mp_name=None):
         params.append(mp_name.upper())
     query += '1=1;'
 
-    query_res = db_conn.fetchDB(query, params)
+    query_res = get_db_conn().fetchDB(query, params)
     if query_res == None or len(query_res) == 0:
         return []
     return [all_sessions[x[0]] for x in query_res]
@@ -100,7 +100,7 @@ def resolveMPs(obj, info, mp_id=None, name=None, party=None, role=None):
         params.append(name.upper())
     query += '1=1;'
 
-    query_res = db_conn.fetchDB(query, params)
+    query_res = get_db_conn().fetchDB(query, params)
     if query_res == None or len(query_res) == 0:
         return []
 
@@ -123,7 +123,7 @@ def resolveDocs(obj, info, docname= None, date = None, session_id=None):
     if len(params) == 0: return []
     query = query[:-3] + ';'
 
-    query_res = db_conn.fetchDB(query, params)
+    query_res = get_db_conn().fetchDB(query, params)
     if query_res == None or len(query_res) == 0:
         return []
 
@@ -157,7 +157,7 @@ def resultTalk(obj, info, with_comments=True):
         if len(query_params) == 0: return obj['talk']
         query = query[:-3] + ';'
 
-        query_res = db_conn.fetchDB(query, query_params)
+        query_res = get_db_conn().fetchDB(query, query_params)
         if query_res == None or len(query_res) == 0:
             return ''
 
@@ -196,7 +196,7 @@ def resolve_talks(obj, info, session_id=None, talk_id=None, date=None, mp_id=Non
         params.append(mp_name.upper())
     query += '1=1;'
 
-    query_res = db_conn.fetchDB(query, params)
+    query_res = get_db_conn().fetchDB(query, params)
 
     if query_res == None or len(query_res) == 0:
         return []
@@ -208,7 +208,7 @@ def resolv_sessions(obj, info, first=None, last=None):
     if first == None: first = 0     # Is periode 0 and session 0
     if last == None: last = 99999   # Is periode 99 and session 999
 
-    query_res = db_conn.fetchDB('SELECT headid, "session", "period", publisher, "type", title, place, "date", url FROM head WHERE headid >= %s and headid <= %s ;', (first, last))
+    query_res = get_db_conn().fetchDB('SELECT headid, "session", "period", publisher, "type", title, place, "date", url FROM head WHERE headid >= %s and headid <= %s ;', (first, last))
     if query_res == None or len(query_res) == 0:
         return {}
     return fill_session_res(obj, info, query_res)
@@ -220,7 +220,7 @@ def resolv_session(obj, info, session_id=None, date=None):
         query = (query + 'headid=%s;', (session_id,))
     else:
         query = (query + 'date=%s;', (date,))
-    query_res = db_conn.fetchDB(*query)
+    query_res = get_db_conn().fetchDB(*query)
 
     if query_res == None or len(query_res) == 0:
         return {}
@@ -264,7 +264,7 @@ def getContent(obj, info, session_id=None, date=None):
         params.append(date)
     query += '1=1;'
 
-    query_res = db_conn.fetchDB(query, params)
+    query_res = get_db_conn.fetchDB(query, params)
     if query_res == None or len(query_res) == 0:
         return []
     return [x[0] for x in query_res]
@@ -280,7 +280,7 @@ def getDocName(session_id = None, date = None):
         query += 'date=%s and '
         params.append(date)
     query += '1=1;'
-    query_res = db_conn.fetchDB(query, params)
+    query_res = get_db_conn().fetchDB(query, params)
 
     if query_res == None or len(query_res) == 0:
         return []

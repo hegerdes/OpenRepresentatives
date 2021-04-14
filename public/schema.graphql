@@ -1,0 +1,69 @@
+scalar Date
+
+schema {
+  query: Query
+}
+
+type Query {
+  getSessions(first: Int, last: Int): [Session]!
+  getSession(session_id: ID, date: Date): Session
+  getTalks(
+    session_id: ID
+    talk_id: ID
+    date: Date
+    mp_id: ID
+    mp_name: String
+  ): [Talk]!
+  getDocs(docname: String, date: Date, session_id: ID): [Doc]!
+  getContent(session_id: ID, date: Date): [String]!
+  getMissing(
+    session_id: ID
+    date: Date
+    mp_id: ID
+    mp_name: String
+    party: String
+  ): [MP]!
+  getMPs(mp_id: ID, name: String, party: String, role: String): [MP]!
+  getMP(mp_id: ID, name: String): MP
+}
+
+type Session {
+  id: ID!
+  title: String!
+  type: String!
+  periode: Int!
+  place: String!
+  publisher: String!
+  date: Date!
+  url: String
+  docs: [Doc]
+  content: [String]
+  talks(first: Int, last: Int): [Talk]
+  missing: [MP]
+}
+
+type Doc {
+  docname: String!
+  url: String!
+  date: Date!
+  session_ids: [Int]!
+}
+
+type MP {
+  mp_id: ID!
+  f_name: String!
+  s_name: String!
+  party: String
+  role: String
+  talks: [Talk]
+  missed: [Session]
+}
+
+type Talk {
+  talk_id: ID!
+  name: String!
+  mp_id: ID!
+  date: Date!
+  session_id: ID!
+  talk(with_comments: Boolean): String!
+}

@@ -5,8 +5,8 @@ import psycopg2
 import time
 from .const import DB_RETRY, USE_REDIS
 
-cache_conn = None
-db_conn = None
+_cache_connection = None
+_db_connection = None
 
 class DB_Connection:
     def __init__(self):
@@ -48,8 +48,8 @@ class DB_Connection:
                 db_res = cur.fetchall()
                 cur.close()
                 return db_res
-            except psycopg2.Error:
-                print('DB connection broken. Retry...')
+            except psycopg2.Error as e:
+                print('DB connection broken. Retry...', e)
                 self.conn = self.createConnection()
                 time.sleep(0.5)
         return
@@ -76,9 +76,21 @@ class CacheConn:
         if self.conn:
             return self.conn.get(key)
 
+def get_db_conn():
+    global _db_connection
+    if not _db_connection:
+        _db_connection = DB_Connection()
+    return _db_connection
+
+def get_cache_conn():
+    global _cache_connection
+    if not _cache_connection:
+        _cache_connection = CacheConn()
+    return _cache_connection
+
 def initDB():
-    cache_conn = CacheConn()
-    db_conn = DB_Connection()
+    cache_conn = get_cache_conn()
+    db_conn = get_db_conn()
     for i in range(DB_RETRY):
         if db_conn.conn.closed != 0:
             time.sleep(0.5)

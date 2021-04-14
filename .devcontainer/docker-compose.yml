@@ -1,0 +1,55 @@
+version: '3.1'
+
+services:
+
+  app:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+      args:
+        # [Choice] Python version: 3, 3.8, 3.7, 3.6
+        VARIANT: 3.9
+        # On Linux, you may need to update USER_UID and USER_GID below if not your local UID is not 1000.
+        USER_UID: 1000
+        USER_GID: 1000
+
+    volumes:
+      - ..:/workspace:cached
+
+    # Overrides default command so things don't shut down after the process ends.
+    command: sleep infinity
+
+    # Runs app on the same network as the database container, allows "forwardPorts" in devcontainer.json function.
+    network_mode: service:db
+
+    # Uncomment the next line to use a non-root user for all processes.
+    # user: vscode
+
+    # Use "forwardPorts" in **devcontainer.json** to forward an app port locally.
+    # (Adding the "ports" property to this file will not forward from a Codespace.)
+
+  cache:
+    image: redis:6.2-buster
+    # Override the start command to the used config
+    command: redis-server /usr/local/etc/redis/redis.conf
+    restart: always
+    volumes:
+      # Config
+      - ./OpenMP_cache:/usr/local/etc/redis/
+
+  db:
+    image: postgres:alpine
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: ${POSGRES_PW}
+      POSTGRES_USER: ${POSGRES_USER}
+      POSTGRES_DB: ${POSGRES_DB}
+    ports:
+      # Use this only for development.
+      # Does not need to be running/exposed in production
+      - ${POSGRES_PORT}:${POSGRES_PORT}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+volumes:
+  pg_data:

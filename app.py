@@ -16,7 +16,7 @@ worker = None
 app = Flask(__name__)
 
 # GraphQL setup
-schema_file = ariadne.load_schema_from_path("assets/schema.graphql")
+schema_file = ariadne.load_schema_from_path("public/schema.graphql")
 schema = ariadne.make_executable_schema(
     schema_file, query_resolver, talk_resolver, session_resolver, mp_resolver, date_scalar, ariadne.snake_case_fallback_resolvers)
 
@@ -64,6 +64,8 @@ def start():
 
 
 if __name__ == '__main__':
+    db_worker.updateDB()
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
     try:
         appenv = os.environ.get('FLASK_ENV', 'development')
         if appenv == 'development':

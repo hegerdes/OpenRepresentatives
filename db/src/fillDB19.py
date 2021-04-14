@@ -47,7 +47,7 @@ CREATE TABLE parliaments (
     f_name VARCHAR(64),
     s_name VARCHAR(64),
     party VARCHAR(64),
-    roll VARCHAR(128) DEFAULT 'none',
+    role VARCHAR(128) DEFAULT 'none',
     PRIMARY KEY (resID)
 );
 """
@@ -182,7 +182,7 @@ def addParla(conn, all_speaker):
     print('Filling parliaments data...')
     cur = conn.cursor()
     parla_query = """INSERT INTO parliaments
-        (resid, f_name, s_name, party, roll)
+        (resid, f_name, s_name, party, role)
         VALUES(%s, %s, %s, %s, %s);
     """
 
