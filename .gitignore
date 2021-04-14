@@ -1,19 +1,18 @@
 #Data dir
 .vscode/*
-api/db_files/*
-api/db/data/*/*.xml
-api/db/data/pp18-data/BUNDESTAGSDOKUMENTE.dtd
+db_files/*
+db/data/*/*.xml
+db/data/pp18-data/BUNDESTAGSDOKUMENTE.dtd
 tmp/*.json
 
 #Compiled files
-*/env/*
+env/*
 *.pyc
 *_tmp.json
 
 #Secrets
 .env
-api/.vscode/settings.json
-api/cache/redis.conf
+.vscode/settings.json
 
 #Project files
 */.vscode/**

@@ -10,6 +10,7 @@ from lib.resolvers import query_resolver, talk_resolver, date_scalar, session_re
 from db.src import fillDB19 as db_worker
 
 # Flask setup
+worker = None
 app = Flask(__name__)
 
 # GraphQL setup
@@ -49,19 +50,22 @@ def checkDB():
         db_worker.updateDB()
         time.sleep(DB_UPDATE_FREQUENCY)
 
+def start():
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    worker = threading.Thread(target=checkDB, daemon=True)
+    if os.environ.get('FLASK_ENV', 'development') == 'production':
+        worker.start()
+    else:
+        app.testing = True
+
 
 if __name__ == '__main__':
     try:
-        os.chdir(os.path.dirname(os.path.abspath(__file__)))
-        worker = threading.Thread(target=checkDB, daemon=True)
-        worker.start()
-        if os.environ.get('FLASK_ENV', 'development') == 'production':
-                worker.start()
-        else:
-            app.testing = True
+        start()
         port = int(os.environ.get('PORT', 5000))
-        app.run(host='0.0.0.0', port=port)
+        if os.environ.get('FLASK_ENV', 'development') == 'development':
+            app.run(host='0.0.0.0', port=port)
 
     except KeyboardInterrupt:
         print('Interrupt received! Closing...')
-        worker.join()
+        if worker: worker.join()
