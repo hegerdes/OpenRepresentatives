@@ -20,10 +20,13 @@ schema_file = ariadne.load_schema_from_path("public/schema.graphql")
 schema = ariadne.make_executable_schema(
     schema_file, query_resolver, talk_resolver, session_resolver, mp_resolver, date_scalar, ariadne.snake_case_fallback_resolvers)
 
-
 @app.route('/')
 def hello():
     return redirect('/graphql')
+
+@app.route('/schema')
+def docs():
+    return open('public/schema.graphql', 'r', encoding='utf8').read()
 
 @app.route("/graphql", methods=["GET"])
 def graphql_playground():
