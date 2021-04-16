@@ -1,2 +1,2 @@
-web: gunicorn --preload 'wsgi:initApp()'
-worker: python worker.py
+web: gunicorn --preload 'app:start()'
+worker: python lib/worker.py

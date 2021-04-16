@@ -56,6 +56,8 @@ def checkDB():
         time.sleep(DB_UPDATE_FREQUENCY)
 
 def start():
+    if os.environ.get('FLASK_ENV', 'development') == 'development':
+        dotenv.load_dotenv('.env')
     initDB()
     return app
 
