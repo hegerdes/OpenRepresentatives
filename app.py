@@ -45,7 +45,7 @@ def graphql_server():
     return flask.jsonify(result), status_code
 
 
-#Backgrund dp updater
+#Backgrund db updater
 def checkDB():
     while True:
         print('Starting DB update check...')
@@ -53,27 +53,19 @@ def checkDB():
         time.sleep(DB_UPDATE_FREQUENCY)
 
 def start():
-    os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    worker = threading.Thread(target=checkDB, daemon=True)
-    if os.environ.get('FLASK_ENV', 'development') == 'production':
-        worker.start()
-    else:
-        app.testing = True
     initDB()
-
+    return app
 
 
 if __name__ == '__main__':
-    db_worker.updateDB()
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     try:
         appenv = os.environ.get('FLASK_ENV', 'development')
         if appenv == 'development':
             dotenv.load_dotenv('.env')
-        start()
-        port = int(os.environ.get('PORT', 5000))
+        app = start()
         if appenv == 'development':
-            app.run(host='0.0.0.0', port=port)
+            app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
 
     except KeyboardInterrupt:
         print('Interrupt received! Closing...')

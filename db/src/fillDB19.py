@@ -1,5 +1,5 @@
 import psycopg2
-from .parse19 import parse, getData, getSpeaker
+from .parse19 import parse, getData, getSpeaker, getXMLFileList
 import os
 import dotenv
 import re
@@ -115,7 +115,7 @@ CREATE TABLE talk_com (
 );
 """
 
-
+createTablesCmd = (head, content, parla, docs, missing, comments, talks, talk_com)
 def createTables(conn, commands):
     cur = conn.cursor()
     cur.execute(table_check)
@@ -304,7 +304,7 @@ def createConnection():
         if heroku_pg_uri:
             conn = psycopg2.connect(heroku_pg_uri)
         else:
-            dotenv.load_dotenv('../../.env')
+            if os.environ.get('FLASK_ENV', 'development') == 'development': dotenv.load_dotenv('../../.env')
             conn = psycopg2.connect('dbname={} user={} password={} host={} port={}'.
                 format(os.getenv('POSGRES_DB'), os.getenv('POSGRES_USER'), os.getenv('POSGRES_PW'),
                 os.getenv('POSGRES_HOST'), os.getenv('POSGRES_PORT')))
@@ -356,18 +356,24 @@ def filterNewEntrys(conn, all_sessions, all_speaker, all_comments):
 
 
 def updateDB():
-    time.sleep(5)
-    data_dir = '../data/pp19-data/'
-    os.chdir(os.path.dirname(os.path.abspath(__file__)))
-
-    conn = createConnection()
-    # all_sessions, all_speaker, all_comments = getData('../data_out/')
-    all_sessions, all_speaker, all_comments = parse(data_dir)
-    createTablesCmd = (head, content, parla, docs, missing, comments, talks, talk_com)
     print('Checking DB...')
+    data_dir = '../data/pp19-data/'
 
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    time.sleep(2)
+    conn = createConnection()
     createTables(conn, createTablesCmd)
+
+    filelist = getXMLFileList(data_dir)
+    lastEntry = checkLatestDBEntry(conn)
+    # Compare last db entry with latest debate session
+    if lastEntry and len(lastEntry) >= 0 and lastEntry[0][0] != None and int(re.findall(r'\d+', filelist[-1])[0]) <= lastEntry[0][0]:
+        print('Everythin up to date')
+        return
+    print('Updating DB...')
+    all_sessions, all_speaker, all_comments = parse(data_dir)
     all_sessions, all_speaker, all_comments = filterNewEntrys(conn, all_sessions, all_speaker, all_comments)
+
 
     if len(all_sessions) == 0:
         print('Everythin up to date')

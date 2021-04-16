@@ -269,7 +269,6 @@ def hash_calc(input):
     return str(int(hashlib.sha256(input.encode('utf-8')).hexdigest(), 16) % 10**16).ljust(16,'0')
 
 def getXMLFileList(datapath):
-    print('Checking files...')
     try:
         downloadXMLs(getListXML(), datapath)
         return [f for f in os.listdir(datapath) if os.path.isfile(os.path.join(datapath, f)) and f[-3:] == 'xml']
@@ -282,8 +281,9 @@ def parse(datapath):
     all_speaker = {}
     all_comments = {}
     prot_files = None
-    dirname = os.path.abspath(os.path.dirname(datapath))
+    print('Checking files...')
     # Check if one file or data dir
+    dirname = os.path.abspath(os.path.dirname(datapath))
     prot_files = [os.path.basename(datapath)] if os.path.isfile(datapath) and datapath[-3:] == 'xml' else getXMLFileList(datapath)
 
     if not prot_files:
