@@ -1,1 +1,1 @@
-web: gunicorn --bind 0.0.0.0:8080 --preload 'wsgi:initApp()'
+web: gunicorn --preload 'wsgi:initApp()'
