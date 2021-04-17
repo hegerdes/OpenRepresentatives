@@ -1,2 +1,2 @@
-web: gunicorn --preload 'app:start()'
-worker: python lib/worker.py
+web: gunicorn --preload --threads 8 'app:start()'
+worker: python db/worker.py
