@@ -2,6 +2,9 @@
 
 **This is a small project to make German politics more transparent.**
 
+## Heroku demo:
+See [LiveDemo](https://open-representatives.herokuapp.com/graphql) here
+___
 ## Current state:
 
 Right now it does:
@@ -10,25 +13,29 @@ Right now it does:
  * Puts (*almost*) everything into a DB
  * Starts a flask backend-server with gunicorn
 
-## Heroku demo:
-See [LiveDemo](https://open-representatives.herokuapp.com/graphql) here
 
 
 ## How to setup dev:
  * Rename the ``.env_example`` to ``.env``
  * Rename the ``api/db/cache/redis.conf.example`` to ``api/db/cache/redis.conf``
  * Change the pw in redis.conf to the one in your .env file [HowTo](https://stackink.com/how-to-set-password-for-redis-server/)
- * Run docker-compose up or use the .dev-container
+ * Run docker-compose up or use the [.dev-container](/.devcontainer)
 
+___
 ## ToDo:
 Things to do:
- * Make parsing more robust ✔
- * Save it to a database ✔
- * GraphQL API ✔
- * Create a WebAPI ✔
- * Logging 🏃‍♂️
- * Cache 🏃‍♂️
- * Simple Info page calling the API
- * Add more open data
+ * ✅ Make parsing more robust
+ * ✅ Save it to a database
+ * ✅ GraphQL API
+ * ✅ Create a WebAPI
+ * 🏃‍♂️ Logging
+ * 🏃‍♂️ Cache
+ * 🏃‍♂️ Deployment
+   * Heroku free dynamo sleeps after 30 min
+   * PosgresDB is limited to 10.000 rows (current 250k)
+ * 🏃‍♂️ Demo Frontend
+   * Under Development at [hegerdes/OpenRepresentatives-frontend](https://github.com/hegerdes/OpenRepresentatives-frontend)
+ * ⏲ Add more open data
     * Scrape Bundestag
     * Twitter from politicians
+
