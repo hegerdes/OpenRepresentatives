@@ -160,7 +160,7 @@ def fillContentDocs(conn, all_sessions):
     cur.execute('SELECT max(contentid) FROM "content"')
     res = cur.fetchall()
     counter = 1 if len(res) == 0 or res[0][0] == None else res[0][0] +1
-    p_pattern = re.compile('\d+(\/\d+)')
+    p_pattern = re.compile(r'\d+(\/\d+)')
     periode = '19'
     for k, v in all_sessions.items():
         sessionid = int(re.findall(r'\d+', k)[0])

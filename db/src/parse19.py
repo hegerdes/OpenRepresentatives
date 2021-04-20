@@ -7,11 +7,11 @@ import hashlib
 import json
 import re
 from .download19 import getListXML, downloadXMLs
-# import download19
 import os
 
 
 # https://www.bundestag.de/ajax/filterlist/de/services/opendata/543410-543410?limit=100&noFilterSet=true&offset=60
+DOC_BASE_URL = "https://dip21.bundestag.de/dip21/btd/{}/{}/{}.pdf"
 parent_map = {}
 
 
@@ -172,7 +172,7 @@ def getSpeaker(speaker):
     try: # speaker has no id ->Minister
         speaker_dict['id'] = int(speaker[0].attrib['id'])
     except ValueError:
-        speaker_dict['id'] = hash_calc(speaker_dict['vorname'] + speaker_dict['nachname'])
+        speaker_dict['id'] = int(hash_calc(speaker_dict['vorname'] + speaker_dict['nachname']))
     return speaker_dict
 
 def handleAnlage(attachment):
@@ -242,18 +242,20 @@ def contenstable(table):
 
 
 def handleTableBlock(block):
-    p_pattern = re.compile('\d+(\/\d+)')
+    p_pattern = re.compile(r'\d+(\/\d+)')
     block_out = {}
     block_out['title'] = block[0].text.replace(':','')
     block_out['topics'] = []
     block_out['docs'] = []
+    block_out['doc_urls'] = []
     for i in range(1, len(block)):
         if block[i].tag == PARAGRAPH:
             block_out['docs'].append(block[i].text)
-        elif block[i][0].text and len(re.sub('\s+',' ',block[i][0].text)) > 1:
+        elif block[i][0].text and len(re.sub(r'\s+',' ',block[i][0].text)) > 1:
             if 'Drucksache' in block[i][0].text:
                 for match in p_pattern.findall(block[i][0].text):
                     block_out['docs'].append('19' + match)
+                    block_out['doc_urls'].append(DOC_BASE_URL.format('19', match[1:].rjust(5, '0')[:3], '19' + match[1:].rjust(5, '0')))
             block_out['topics'].append(block[i][0].text)
     return block_out
 
@@ -283,12 +285,11 @@ def parse(datapath):
     prot_files = None
     print('Checking files...')
     # Check if one file or data dir
-    dirname = os.path.abspath(os.path.dirname(datapath))
     prot_files = [os.path.basename(datapath)] if os.path.isfile(datapath) and datapath[-3:] == 'xml' else getXMLFileList(datapath)
 
     if not prot_files:
         print('No files found! Downloading')
-        downloadXMLs(getListXML())
+        downloadXMLs(getListXML(), outdir=datapath)
         prot_files = getXMLFileList(datapath)
 
     urls = {url[-14:]: url for url in getListXML()}
@@ -296,7 +297,7 @@ def parse(datapath):
         all_sessions[data_file] = {}
         all_sessions[data_file]['topics'] = []
         print('Parsing', data_file + '...')
-        root = ET.parse(os.path.join(dirname, data_file)).getroot()
+        root = ET.parse(os.path.join(datapath, data_file)).getroot()
         parent_map = {c: p for p in root.iter() for c in p}
 
         praesident = 'Präsident None: '
@@ -343,7 +344,7 @@ def getData(out_dir):
         return parse(out_dir)
 
 def saveData(out_dir, all_sessions, all_speaker, all_comments, indent=2):
-    print('Saving pared files as json')
+    print('Saving parsed files as json to:', os.path.abspath(out_dir))
     with open(out_dir + 'content_out_tmp.json', 'w', encoding='utf8') as fp:
         json.dump(all_sessions, fp, ensure_ascii=False, default=str, indent=indent)
 
