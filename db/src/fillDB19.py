@@ -1,10 +1,9 @@
 import psycopg2
-from .parse19 import parse, getData, getSpeaker, getXMLFileList
+from parse19 import parse, getData, getSpeaker, getXMLFileList
 import os
 import dotenv
 import re
 import time
-from .visual import *
 
 
 DOC_BASE_URL = "https://dip21.bundestag.de/dip21/btd/{}/{}/{}.pdf"
