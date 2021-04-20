@@ -78,6 +78,7 @@ if __name__ == '__main__':
             dotenv.load_dotenv('.env')
         app = start()
         if appenv == 'development':
+            app.testing = True
             app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
 
     except KeyboardInterrupt:
