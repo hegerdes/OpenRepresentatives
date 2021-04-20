@@ -2,7 +2,7 @@
 import datetime
 import ariadne
 import re
-from .const import COMMENT as CT
+from .const import COMMENT as CT, PARTY_ALIAS as PA
 from .db_conn import get_db_conn
 
 comment_pattern = re.compile("<C>\d{16}<\/C>")
@@ -38,7 +38,7 @@ def getMissingMPs(obj, info, session_id = None, date=None, mp_id=None, mp_name=N
         params.append(mp_name.upper())
     if party:
         query += 'UPPER(party) LIKE %s and '
-        params.append(party.upper())
+        params.append(PA.get(party.upper(), ""))
     query += '1=1;'
 
     query_res = get_db_conn().fetchDB(query, params)
@@ -91,7 +91,7 @@ def resolveMPs(obj, info, mp_id=None, name=None, party=None, role=None):
         params.append(int(mp_id))
     if party:
         query += 'UPPER(party) LIKE %s and '
-        params.append(party.upper())
+        params.append(PA.get(party.upper(), ""))
     if role:
         query += 'UPPER(role) LIKE %s and '
         params.append(role.upper())
