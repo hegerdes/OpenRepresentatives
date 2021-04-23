@@ -11,6 +11,7 @@ import os
 
 
 # https://www.bundestag.de/ajax/filterlist/de/services/opendata/543410-543410?limit=100&noFilterSet=true&offset=60
+# Namentliche Abstimmungen: https://www.bundestag.de/abstimmung
 DOC_BASE_URL = "https://dip21.bundestag.de/dip21/btd/{}/{}/{}.pdf"
 parent_map = {}
 
@@ -278,6 +279,24 @@ def getXMLFileList(datapath):
         print('File not found. Please check')
         exit(0)
 
+def merge_dicts(dict1, dict2):
+    pass
+    for v2, k2 in dict2.items():
+        if v2 in dict1:
+            if 'rolle' in k2:
+                if k2['rolle'] == 'Alterspräsident':
+                    dict1[10000000] = {**k2, 'id': 10000000}
+                    print('here')
+                elif 'rolle' not in dict1[v2]:
+                    dict1[v2] = {**dict1[v2], 'rolle':k2['rolle']}
+                elif 'rolle' in dict1[v2] and dict1[v2]['rolle'].split(';')[-1] != k2['rolle']:
+                    dict1[v2]['rolle'] += ';' + k2['rolle']
+                else: dict1[v2] = {**dict1[v2], **k2}
+        else:
+            dict1[v2] = k2
+    return dict1
+
+
 def parse(datapath):
     all_sessions = {}
     all_speaker = {}
@@ -319,7 +338,7 @@ def parse(datapath):
                     if cc.tag == TOPIC:
                         topic = handeTagesordnung(cc, praesident)
                         tmp = {speach['speaker']['id']: speach['speaker'] for speach in topic['talks'] if 'speaker' in speach}
-                        all_speaker = {**all_speaker, **tmp}
+                        all_speaker = merge_dicts(all_speaker, tmp)
                         all_comments = {**all_comments, **topic['comments']}
                         all_sessions[data_file]['topics'].append(topic)
             elif child.tag == ANLAGE:
