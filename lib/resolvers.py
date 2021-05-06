@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 import datetime
+import unicodedata
 import ariadne
 import re
 from .const import COMMENT as CT, PARTY_ALIAS as PA
 from .db_conn import get_db_conn
 
-comment_pattern = re.compile("<C>\d{16}<\/C>")
-comment_pattern_blank = re.compile(" <C>\d{16}<\/C>")
+comment_pattern = re.compile(r"<C>\d{16}<\/C>")
+comment_pattern_blank = re.compile(r" <C>\d{16}<\/C>")
 
 query_resolver = ariadne.ObjectType("Query")        # General query
 talk_resolver = ariadne.ObjectType("Talk")          # For talk argument filed
@@ -48,8 +49,6 @@ def getMissingMPs(obj, info, session_id = None, date=None, mp_id=None, mp_name=N
     return [{'mp_id': x[0], 'f_name': x[1], 's_name': x[2], 'role': x[3], 'party':x[4]} for x in query_res]
 
 
-
-
 @mp_resolver.field('missed')
 def getMissedSessions(obj, info, date=None, mp_id=None, mp_name=None):
     all_sessions = {session['id']: session for session in resolv_sessions(obj,info)}
@@ -76,6 +75,12 @@ def getMissedSessions(obj, info, date=None, mp_id=None, mp_name=None):
         return []
     return [all_sessions[x[0]] for x in query_res]
 
+@mp_resolver.field('missed_counter')
+def getMissingCount(obj, info, date=None, mp_id=None, mp_name=None):
+    if obj:
+        if 'mp_id' in obj: mp_id = obj['mp_id']
+        if 'f_name' in obj and 's_name' in obj: mp_name = obj['f_name'] + ' ' + obj['s_name']
+    return len(getMissedSessions(obj, info, date, mp_id, mp_name))
 
 @query_resolver.field('getMP')
 def resolveMP(obj, info, mp_id=None, name=None):

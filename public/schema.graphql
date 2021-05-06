@@ -57,6 +57,7 @@ type MP {
   role: String
   talks: [Talk]
   missed: [Session]
+  missed_counter: Int!
 }
 
 type Talk {

@@ -46,7 +46,7 @@ CREATE TABLE parliaments (
     f_name VARCHAR(64),
     s_name VARCHAR(64),
     party VARCHAR(64),
-    role VARCHAR(128) DEFAULT 'none',
+    role VARCHAR(256) DEFAULT 'none',
     PRIMARY KEY (resID)
 );
 """
@@ -91,7 +91,7 @@ talks = """
 CREATE TABLE talks (
     talkID BIGINT NOT NULL,
     speakerID BIGINT NOT NULL,
-    speakerName VARCHAR(128) NOT NULL,
+    speakerName VARCHAR(256) NOT NULL,
     contentID INT NOT NULL,
     sessionID INT NOT NULL,
     date DATE,
@@ -159,7 +159,7 @@ def fillContentDocs(conn, all_sessions):
     cur.execute('SELECT max(contentid) FROM "content"')
     res = cur.fetchall()
     counter = 1 if len(res) == 0 or res[0][0] == None else res[0][0] +1
-    p_pattern = re.compile('\d+(\/\d+)')
+    p_pattern = re.compile(r'\d+(\/\d+)')
     periode = '19'
     for k, v in all_sessions.items():
         sessionid = int(re.findall(r'\d+', k)[0])
