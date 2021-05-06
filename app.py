@@ -7,6 +7,7 @@ import os
 import dotenv
 import logging
 from flask import Flask, redirect
+from flask_cors import CORS
 from flask_limiter.util import get_remote_address
 from flask_limiter import Limiter
 
@@ -21,6 +22,7 @@ from db.src import fillDB19 as db_worker
 worker = None
 logging.info('Init Flask')
 app = Flask(__name__)
+cors = CORS(app)
 logging.info('Adding limiter')
 limiter = Limiter(app,
     key_func=get_remote_address,
