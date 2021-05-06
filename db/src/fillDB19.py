@@ -47,7 +47,7 @@ CREATE TABLE parliaments (
     f_name VARCHAR(64),
     s_name VARCHAR(64),
     party VARCHAR(64),
-    role VARCHAR(128) DEFAULT 'none',
+    role VARCHAR(256) DEFAULT 'none',
     PRIMARY KEY (resID)
 );
 """
@@ -92,7 +92,7 @@ talks = """
 CREATE TABLE talks (
     talkID BIGINT NOT NULL,
     speakerID BIGINT NOT NULL,
-    speakerName VARCHAR(128) NOT NULL,
+    speakerName VARCHAR(256) NOT NULL,
     contentID INT NOT NULL,
     sessionID INT NOT NULL,
     date DATE,
