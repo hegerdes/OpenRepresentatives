@@ -286,7 +286,6 @@ def merge_dicts(dict1, dict2):
             if 'rolle' in k2:
                 if k2['rolle'] == 'Alterspräsident':
                     dict1[10000000] = {**k2, 'id': 10000000}
-                    print('here')
                 elif 'rolle' not in dict1[v2]:
                     dict1[v2] = {**dict1[v2], 'rolle':k2['rolle']}
                 elif 'rolle' in dict1[v2] and k2['rolle'] not in dict1[v2]['rolle'].split(';'):
