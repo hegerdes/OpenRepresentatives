@@ -55,11 +55,16 @@ def graphql_server():
         data,
         context_value=flask.request,
         debug=app.debug,
-        mimetype="text/event-stream"
+        # mimetype="text/event-stream"
     )
 
     status_code = 200 if success else 400
-    return flask.jsonify(result), status_code
+    r = flask.make_response(result, status_code)
+    # r.mimetype = "text/html"
+    r.mimetype = "text/event-stream"
+    # r.minetype = "application/json"
+    return r
+    # return data: flask.jsonify(result), status_code
 
 
 def start():
