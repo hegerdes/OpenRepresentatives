@@ -47,7 +47,7 @@ CREATE TABLE parliaments (
     f_name VARCHAR(64),
     s_name VARCHAR(64),
     party VARCHAR(64),
-    role VARCHAR(256) DEFAULT 'none',
+    role VARCHAR(512) DEFAULT 'none',
     PRIMARY KEY (resID)
 );
 """

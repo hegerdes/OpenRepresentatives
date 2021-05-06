@@ -289,7 +289,7 @@ def merge_dicts(dict1, dict2):
                     print('here')
                 elif 'rolle' not in dict1[v2]:
                     dict1[v2] = {**dict1[v2], 'rolle':k2['rolle']}
-                elif 'rolle' in dict1[v2] and dict1[v2]['rolle'].split(';')[-1] != k2['rolle']:
+                elif 'rolle' in dict1[v2] and k2['rolle'] not in dict1[v2]['rolle'].split(';'):
                     dict1[v2]['rolle'] += ';' + k2['rolle']
                 else: dict1[v2] = {**dict1[v2], **k2}
         else:
