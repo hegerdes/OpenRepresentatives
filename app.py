@@ -54,7 +54,8 @@ def graphql_server():
         schema,
         data,
         context_value=flask.request,
-        debug=app.debug
+        debug=app.debug,
+        mimetype="text/event-stream"
     )
 
     status_code = 200 if success else 400
