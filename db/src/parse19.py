@@ -311,7 +311,7 @@ def parse(datapath):
         prot_files = getXMLFileList(datapath)
 
     urls = {url[-14:]: url for url in getListXML()}
-    for data_file in prot_files:
+    for data_file in prot_files.sort():
         all_sessions[data_file] = {}
         all_sessions[data_file]['topics'] = []
         print('Parsing', data_file + '...')
